@@ -3,6 +3,7 @@
 mecánicas de la aplicación, en resumen, todo lo que no tiene que ver con el apartado de modelos
 geométricos ni la parte gráfica """
 
+from sys import path_importer_cache
 import glfw
 import numpy as np
 import grafica.transformations as tr
@@ -39,17 +40,22 @@ class FirstCamera:
     def __init__(self, x, y):
         self.at = np.array([x, y + 1.0, 0.0])
         self.theta = -np.pi/2
+        self.phi = np.pi/2
         self.eye = np.array([x, y, 0.0])
         self.up = np.array([0, 0, 1])
 
     # Determina el ángulo theta
     def set_theta(self, theta):
         self.theta = theta + np.pi
+    
+    def set_phi(self, phi):
+        self.phi = phi
 
     # Actualiza la matriz de vista y la retorna
     def update_view(self):
-        self.at[0] = np.cos(self.theta) + self.eye[0]
-        self.at[1] = np.sin(self.theta) + self.eye[1]
+        self.at[0] = np.cos(self.theta) * np.sin(self.phi) + self.eye[0]
+        self.at[1] = np.sin(self.theta) * np.sin(self.phi) + self.eye[1]
+        self.at[2] = np.cos(self.phi)
 
         viewMatrix = tr.lookAt(
             self.eye,
@@ -134,12 +140,6 @@ class Controller:
             if (button == glfw.MOUSE_BUTTON_2):
                 self.rightClickOn = False
 
-    # Función que obtiene el scroll del mouse
-    def scroll_callback(window, x, y):
-        pass
-
-
-
     #Funcion que recibe el input para manejar la camara y el tipo de esta
     def update_camera(self, delta):
         # Selecciona la cámara a utilizar
@@ -155,8 +155,9 @@ class Controller:
             self.camara = 3
 
 
-        direction = self.camera.at - self.camera.eye
-        theta = self.mousePos[0] * 2 * np.pi - np.pi/2
+        direction = np.array([self.camera.at[0] - self.camera.eye[0], self.camera.at[1] - self.camera.eye[1], 0])
+        theta = -self.mousePos[0] * 2 * np.pi - np.pi/2
+        phi = -self.mousePos[1] * (np.pi/2-0.01) + np.pi/2
 
         if self.camara == 3:
             if self.leftClickOn:
@@ -170,6 +171,7 @@ class Controller:
 
             if self.rightClickOn:
                 self.camera.eye -= direction * delta
+            self.camera.set_phi(phi)
 
 
         self.camera.set_theta(theta)
