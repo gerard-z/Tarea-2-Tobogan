@@ -8,3 +8,7 @@ La tarea consiste en la creación de un entorno 3D de una cueva con un personaje
 
 IDEAS:
 - Agregar una vista aerea que muestre la cueva, la posición actual de lara y quite de la vista el techo de la cueva
+
+
+TODO:
+- Debes terminar la creación de la cueva básica, falta crear los gpuShape, como leerá las texturas y otros

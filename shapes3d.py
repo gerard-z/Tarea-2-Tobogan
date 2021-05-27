@@ -1,5 +1,6 @@
 """Funciones para crear distintas figuras y escenas en 3D """
 
+import openmesh as om
 import numpy as np
 import math
 from OpenGL.GL import *
@@ -30,6 +31,84 @@ def createTextureGPUShape(shape, pipeline, path):
     gpuShape.texture = es.textureSimpleSetup(
         path, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST)
     return gpuShape
+
+def caveMesh(matriz):
+    """ Se crea las 2 mallas de polígonos correspondiente al suelo y el techo, por conveniencia, se utilizarán celdas
+    de 2x2 metros cuadrados. """
+    sueloMesh = om.TriMesh()
+    techoMesh = om.TriMesh()
+    # Se obtienen las dimensiones de la matriz
+    (N, M, k) = matriz.shape
+    n= N//2
+    m= M//2
+    # Se crean arreglos que corresponderan al eje x e y de la cueva, de N+1 y M+1 vértices cada uno, de modo que
+    # cada celda de la matriz sea generada por un cuadrado de 4 vértices
+    xs = np.linspace(N, N, N+1)
+    ys = np.linspace(M, M, M+1)
+
+    # Se generan los vértices de la malla, utilizando las alturas dadas
+    for i in range(N+1):
+        for j in range(M+1):
+            x = xs[i]
+            y = ys[j]
+            z0 = matriz[i][j][0]
+            z1 = matriz[i][j][1]
+            # Agregamos el vértice a la malla correspondiente
+            sueloMesh.add_vertex([x, y, z0])
+            techoMesh.add_vertex([x, y, z1])
+    
+    # Se calcula el índice de cada punto (i, j) de la forma:
+    index = lambda i, j: i*(M+1) + j
+
+    # Se crean las caras para cada cuadrado de la celda
+    for i in range(N):
+        for j in range(M):
+            # los índices:
+            isw = index(i,j)
+            ise = index(i+1,j)
+            ine = index(i+1,j+1)
+            inw = index(i,j+1)
+
+            # Obtenemos los vertices de cada malla, y agregamos las caras
+            vertexsuelo = list(sueloMesh.vertices())
+            vertextecho = list(techoMesh.vertices())
+
+            sueloMesh.add_face(vertexsuelo[isw], vertexsuelo[ise], vertexsuelo[ine])
+            sueloMesh.add_face(vertexsuelo[ine], vertexsuelo[inw], vertexsuelo[isw])
+
+            techoMesh.add_face(vertextecho[isw], vertextecho[ise], vertextecho[ine])
+            techoMesh.add_face(vertextecho[ine], vertextecho[inw], vertextecho[isw])
+    # Se entregan las mallas
+    return (sueloMesh, techoMesh)
+
+def get_vertexs_and_indexes(mesh):
+    # Obtenemos las caras de la malla
+    faces = mesh.faces()
+
+    # Creamos una lista para los vertices e indices
+    vertexs = []
+
+    # Obtenemos los vertices y los recorremos
+    for vertex in mesh.points():
+        vertexs += vertex.tolist()
+        # Agregamos un color al azar
+        vertexs += [random.uniform(0,1), random.uniform(0,1), random.uniform(0,1)]
+
+    indexes = []
+
+    for face in faces:
+        # Obtenemos los vertices de la cara
+        face_indexes = mesh.fv(face)
+        for vertex in face_indexes:
+            # Obtenemos el numero de indice y lo agregamos a la lista
+            indexes += [vertex.idx()]
+
+    return vertexs, indexes
+
+def createCave(pipeline, meshs):
+    # obtenemos los vértices e índices del suelo y del techo
+    sueloVertices, sueloIndices = get_vertexs_and_indexes(meshs[0])
+    techoVertices, techoIndices = get_vertexs_and_indexes(meshs[1])
 
 def createScene(pipeline):
 
