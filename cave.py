@@ -9,7 +9,6 @@ import grafica.transformations as tr
 import grafica.basic_shapes as bs
 import grafica.easy_shaders as es
 import grafica.performance_monitor as pm
-import grafica.lighting_shaders as ls
 import grafica.scene_graph as sg
 import grafica.newLightShaders as nl
 from shapes3d import *

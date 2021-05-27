@@ -110,6 +110,8 @@ def createCave(pipeline, meshs):
     sueloVertices, sueloIndices = get_vertexs_and_indexes(meshs[0])
     techoVertices, techoIndices = get_vertexs_and_indexes(meshs[1])
 
+    return 
+
 def createScene(pipeline):
 
     gpuRedCube = createGPUShape(pipeline, bs.createColorNormalsCube(1, 0, 0))

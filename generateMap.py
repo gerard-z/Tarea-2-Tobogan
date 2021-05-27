@@ -22,6 +22,7 @@ def cuevaEjemplo(N):
                 L[3]=3
     return Matriz
 
+# Funciones que guardan y cargan un archivo npy, en este caso, donde se guarda la matriz que funcionará de mapa
+
 #np.save("map.npy",cuevaEjemplo(50))
-Matriz = np.load("map.npy")
-print (Matriz)
+#Matriz = np.load("map.npy")
