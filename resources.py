@@ -85,6 +85,8 @@ class Controller:
         self.camera = ThirdCamera(0, 0)
         self.camara = 3
 
+        self.light = 2
+
         self.leftClickOn = False
         self.rightClickOn = False
         self.mousePos = (0.0, 0.0)
@@ -108,7 +110,18 @@ class Controller:
 
             if key == glfw.KEY_A:
                 self.is_a_pressed = not self.is_a_pressed
+            
+            if key == glfw.KEY_1:
+                self.light = 1
         
+            if key == glfw.KEY_2:
+                self.light = 2
+
+            if key == glfw.KEY_3:
+                self.light = 3
+
+            if key == glfw.KEY_4:
+                self.light = 4
 
     # Función que obtiene las coordenadas de la posición del mouse y las traduce en coordenadas de openGL
     def cursor_pos_callback(self, window, x, y):
@@ -167,10 +180,10 @@ class Controller:
                 self.camera.at -= direction * delta
         elif self.camara == 1:
             if self.leftClickOn:
-                self.camera.eye += direction * delta
+                self.camera.eye += direction * delta * 3
 
             if self.rightClickOn:
-                self.camera.eye -= direction * delta
+                self.camera.eye -= direction * delta * 3
             self.camera.set_phi(phi)
 
 

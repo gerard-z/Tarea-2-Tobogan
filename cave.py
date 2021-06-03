@@ -39,7 +39,7 @@ if __name__ == "__main__":
     glfw.set_cursor_pos_callback(window, controller.cursor_pos_callback)
     glfw.set_mouse_button_callback(window, controller.mouse_button_callback)
 
-     # Different shader programs for different lighting strategies
+    # Different shader programs for different lighting strategies
     #phongPipeline = nl.MultiplePhongShaderProgram()
     #phongTexPipeline = nl.MultipleTexturePhongShaderProgram()
 
@@ -61,10 +61,13 @@ if __name__ == "__main__":
 
     # Creating shapes on GPU memory
     gpuAxis = createGPUShape(mvpPipeline, bs.createAxis(4))
-
+    # Personaje
     gpuRedCube = createGPUShape(mvpPipeline, bs.createColorCube(1,0,0))
-
     gpuRedQuad = createGPUShape(pipeline2D, bs.createColorQuad(1, 0, 0))
+
+    # Cueva
+    Matriz = np.load("map.npy")
+    gpuSuelo, gpuTecho = createCave(phongPipeline, caveMesh(Matriz))
 
     scene = createScene(phongPipeline)
     cube1 = createCube1(phongPipeline)
@@ -79,6 +82,9 @@ if __name__ == "__main__":
     r = 0.5
     g = 0
     b = 0.25
+    LightPower = 0.8
+    lightConcentration =30
+    lightShininess = 1
 
     # Application loop
     while not glfw.window_should_close(window):
@@ -133,12 +139,37 @@ if __name__ == "__main__":
         #lightposition2 = [1.7*np.cos(t1 + 4*pi/3), 1.7*np.sin(t1 + 4*pi/3), 2.3]
         #lightposition0 = [0, 0, 2.3]
 
+        # CUEVA COLOR
+        #glUseProgram(mvpPipeline.shaderProgram)
+        #glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        #glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+        #glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
+        #mvpPipeline.drawCall(gpuSuelo)
+        #mvpPipeline.drawCall(gpuTecho)
+
+
         #c1 = np.abs(((0.5*t1+0.00) % 2)-1)
         #c2 = np.abs(((0.5*t1+0.66) % 2)-1)
         #c3 = np.abs(((0.5*t1+1.32) % 2)-1)
 
         # Setting all uniform shader variables
-        LightPower = 0.9
+        if controller.light==1:
+            LightPower = 0.6
+            lightConcentration = 50
+            lightShininess = 1
+        elif controller.light==2:
+            LightPower = 0.8
+            lightConcentration = 30
+            lightShininess = 1
+        elif controller.light==4:
+            LightPower = 0
+            lightConcentration = 1
+            lightShininess = 0
+        else:
+            LightPower = 1
+            lightConcentration = 10
+            lightShininess = 1
+        
         
         glUseProgram(lightingPipeline.shaderProgram)
         # Position of all light
@@ -159,7 +190,7 @@ if __name__ == "__main__":
         #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls2"), 1, [c3, c1, c2])
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "La"), 0.1, 0.1, 0.1)
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ld"), LightPower, LightPower, LightPower)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls"), 1.0, 1.0, 1.0)
+        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls"), lightShininess, lightShininess, lightShininess)
 
         # Object is barely visible at only ambient. Diffuse behavior is slightly red. Sparkles are white
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
@@ -168,7 +199,7 @@ if __name__ == "__main__":
 
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "viewPosition"), camera.eye[0], camera.eye[1], camera.eye[2])
         glUniform1ui(glGetUniformLocation(lightingPipeline.shaderProgram, "shininess"), 100)
-        glUniform1ui(glGetUniformLocation(lightingPipeline.shaderProgram, "concentration"), 50)
+        glUniform1ui(glGetUniformLocation(lightingPipeline.shaderProgram, "concentration"), lightConcentration)
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "lightDirection"), lightDirection[0], lightDirection[1], lightDirection[2])
         
         glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "constantAttenuation"), 0.01)
@@ -183,6 +214,10 @@ if __name__ == "__main__":
         sg.drawSceneGraphNode(scene, lightingPipeline, "model")
         sg.drawSceneGraphNode(cube1, lightingPipeline, "model")
         sg.drawSceneGraphNode(cube2, lightingPipeline, "model")
+
+        #CUEVA
+        lightingPipeline.drawCall(gpuSuelo)
+        lightingPipeline.drawCall(gpuTecho)
         
         glUseProgram(phongTexPipeline.shaderProgram)
         # Position of all light
@@ -203,7 +238,7 @@ if __name__ == "__main__":
         #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ls2"), 1, [c3, c1, c2])
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "La"), 0.1, 0.1, 0.1)
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ld"), LightPower, LightPower, LightPower)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ls"), 1.0, 1.0, 1.0)
+        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ls"), lightShininess, lightShininess, lightShininess)
 
         # Object is barely visible at only ambient. Diffuse behavior is slightly red. Sparkles are white
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
@@ -212,7 +247,7 @@ if __name__ == "__main__":
 
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "viewPosition"), camera.eye[0], camera.eye[1], camera.eye[2])
         glUniform1ui(glGetUniformLocation(phongTexPipeline.shaderProgram, "shininess"), 100)
-        glUniform1ui(glGetUniformLocation(phongTexPipeline.shaderProgram, "concentration"), 50)
+        glUniform1ui(glGetUniformLocation(phongTexPipeline.shaderProgram, "concentration"), lightConcentration)
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "lightDirection"), lightDirection[0], lightDirection[1], lightDirection[2])
         
         glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "constantAttenuation"), 0.001)
@@ -242,5 +277,13 @@ if __name__ == "__main__":
 
     gpuAxis.clear()
     gpuRedCube.clear()
+    gpuRedQuad.clear()
+    tex_toroid2.clear()
+    tex_toroid.clear()
+    scene.clear()
+    cube1.clear()
+    cube2.clear()
+    gpuSuelo.clear()
+    gpuTecho.clear()
 
     glfw.terminate()

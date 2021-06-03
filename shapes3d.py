@@ -2,7 +2,7 @@
 
 import openmesh as om
 import numpy as np
-import math
+import numpy.random as rd
 from OpenGL.GL import *
 import grafica.basic_shapes as bs
 import grafica.easy_shaders as es
@@ -32,9 +32,72 @@ def createTextureGPUShape(shape, pipeline, path):
         path, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST)
     return gpuShape
 
+def Curve(typeCurve, V1, V2, V3, V4, N):
+    """ str np.array np.array np.array np.array int -> np.ndarray((N,3))
+    Función que crea una curva con los 4 vectores claves para la parametrización y entrega la curva en cuestión.
+    Las curvas compatibles son:
+    "Hermite", curva que recibe P1, P2, T1, T2, punto inicial y final y sus tengentes.
+    "Bezier", curva que recibe P1, P2, P3, P4, punto inicial, intermedio 1 y y2 y la final.
+    "CatmullRom", curva que recibe P0, P1, P2, P3, punto anterior, inicial, final, y después"""
+
+
+    # Se crean N puntos a evaluar entre 0 y 1
+    ts = np.linspace(0.0, 1.0, N)
+
+    # Se crea el vector tiempo
+    def generateT(t):   
+        return np.array([[1, t, t**2, t**3]]).T
+
+    # Genera la matriz que contiene los puntos y tangentes claves de la curva
+    G = np.concatenate((V1, V2, V3, V4), axis=1)
+    
+    # Se crera la matriz de la curva constante que da la forma:
+    if typeCurve == "Hermite":
+        M = np.array([[1, 0, -3, 2], [0, 0, 3, -2], [0, 1, -2, 1], [0, 0, -1, 1]])
+    elif typeCurve == "Bezier":
+        M = np.array([[1, -3, 3, -1], [0, 3, -6, 3], [0, 0, 3, -3], [0, 0, 0, 1]])
+    elif typeCurve == "CatmullRom":
+        M = np.array([[0, -0.5, 1, -0.5], [1, 0, -2.5, 1.5], [0, 0.5, 2, -1.5], [0, 0, -0.5, 0.5]])
+    else:
+        print ("No se reconoce la curva para los vectores:", V1, V2, V3, V4)
+        assert False
+    
+    # Se crea la curva:
+    curve = np.ndarray((N,3))
+
+    # Se evalua cada punto de la curva
+    for i in range(len(ts)):
+        T = generateT(ts[i])
+        curve[i, 0:3] = np.matmul(M, T).T
+
+    return curve
+
+def calculateNormal(mesh, vertex):
+    """ om.mesh() vertex -> np.array3
+    Recibe el mesh y un vértice, utilizando la estructura halfedge calcula la normal de las caras
+    adyacentes y los promedia para conseguir su norma.
+    Por ahora no tiene en cuenta los cálculos previamente hechos :s"""
+    point0 = np.array(mesh.point(vertex))   #Coordenadas del vértice original
+    normal = np.array([0, 0, 0])            # vector que promediará las normales de las caras adyacentes
+    for outhEdge in mesh.voh(vertex):
+        nexthEdge = mesh.next_halfedge_handle(outhEdge)                    # Obtiene el siguiente puntero
+        if mesh.to_vertex_handle(mesh.next_halfedge_handle(nexthEdge))== vertex:
+            point1= np.array(list(mesh.point(mesh.to_vertex_handle(outhEdge))))      # Obtiene otro vértice de la cara 
+            point2 = np.array(list(mesh.point(mesh.to_vertex_handle(nexthEdge))))    # Obtiene el último vértice de la cara
+            dir1 = point1 - point0          # Calcula el vector que va desde el primer vértice al segundo
+            dir2 = point1 - point2          # Calcula el vector que va desde el tercer vértice al segundo
+            cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara adyacente
+            normal = normal +  cruz/np.linalg.norm(cruz)   # Se suma la normal de la cara normalizada  
+
+    normal = normal/np.linalg.norm(normal)    # Se obtiene el promedio de las normales
+    return normal
+
+
+
+
 def caveMesh(matriz):
     """ Se crea las 2 mallas de polígonos correspondiente al suelo y el techo, por conveniencia, se utilizarán celdas
-    de 2x2 metros cuadrados. """
+    de 2x2 metros cuadrados. (Considerando que los ejes se encontraran efectivamente en metros) """
     sueloMesh = om.TriMesh()
     techoMesh = om.TriMesh()
     # Se obtienen las dimensiones de la matriz
@@ -43,56 +106,80 @@ def caveMesh(matriz):
     m= M//2
     # Se crean arreglos que corresponderan al eje x e y de la cueva, de N+1 y M+1 vértices cada uno, de modo que
     # cada celda de la matriz sea generada por un cuadrado de 4 vértices
-    xs = np.linspace(N, N, N+1)
-    ys = np.linspace(M, M, M+1)
+    if N%2!=0:
+        xs = np.linspace(-N-n, N+n, N*3)
+    else:
+        xs = np.linspace(-N-n, N+n-1, N*3)
+    if M%2!=0:
+        ys = np.linspace(-M-m, M+m, M*3)
+    else:
+        ys = np.linspace(-M-m, M+m-1, M*3)
+
+    # largo de arregles
+    lenXS = len(xs)
+    lenYS = len(ys)
 
     # Se generan los vértices de la malla, utilizando las alturas dadas
-    for i in range(N+1):
-        for j in range(M+1):
-            x = xs[i]
+    for i in range(lenXS):
+        x = xs[i]
+        im = i//3   # Transforma el índice en su correspondiente celda de la matriz
+        for j in range(lenYS):
             y = ys[j]
-            z0 = matriz[i][j][0]
-            z1 = matriz[i][j][1]
+            jm = j//3 # Transforma el índice en su correspondiente celda de la matriz
+            z0 = matriz[im][jm][0]
+            z1 = matriz[im][jm][1]
             # Agregamos el vértice a la malla correspondiente
             sueloMesh.add_vertex([x, y, z0])
             techoMesh.add_vertex([x, y, z1])
     
     # Se calcula el índice de cada punto (i, j) de la forma:
-    index = lambda i, j: i*(M+1) + j
+    index = lambda i, j: i*lenYS + j
+
+    # Obtenemos los vertices de cada malla, y agregamos las caras
+    vertexsuelo = list(sueloMesh.vertices())
+    vertextecho = list(techoMesh.vertices())
 
     # Se crean las caras para cada cuadrado de la celda
-    for i in range(N):
-        for j in range(M):
+    for i in range(lenXS-1):
+        for j in range(lenYS-1):
             # los índices:
             isw = index(i,j)
             ise = index(i+1,j)
             ine = index(i+1,j+1)
             inw = index(i,j+1)
-
-            # Obtenemos los vertices de cada malla, y agregamos las caras
-            vertexsuelo = list(sueloMesh.vertices())
-            vertextecho = list(techoMesh.vertices())
-
+            # Se agregan las caras
             sueloMesh.add_face(vertexsuelo[isw], vertexsuelo[ise], vertexsuelo[ine])
             sueloMesh.add_face(vertexsuelo[ine], vertexsuelo[inw], vertexsuelo[isw])
 
             techoMesh.add_face(vertextecho[isw], vertextecho[ise], vertextecho[ine])
             techoMesh.add_face(vertextecho[ine], vertextecho[inw], vertextecho[isw])
+
     # Se entregan las mallas
     return (sueloMesh, techoMesh)
 
-def get_vertexs_and_indexes(mesh):
+def get_vertexs_and_indexes(mesh, orientation):
     # Obtenemos las caras de la malla
     faces = mesh.faces()
+
+    # orientation indica si las normales deben apuntar abajo(-1) o arriba(1)
+    assert orientation==1 or orientation==-1, "La orientación debe ser indicada con 1 o -1"
 
     # Creamos una lista para los vertices e indices
     vertexs = []
 
     # Obtenemos los vertices y los recorremos
-    for vertex in mesh.points():
-        vertexs += vertex.tolist()
+    for vertex in mesh.vertices():
+        vertexs += mesh.point(vertex).tolist()
         # Agregamos un color al azar
-        vertexs += [random.uniform(0,1), random.uniform(0,1), random.uniform(0,1)]
+        vertexs += [0.3, 1, 0.3]
+        # Agregamos la norma
+        normal = calculateNormal(mesh, vertex)
+        normal = orientation * normal
+
+        vertexs += [normal[0], normal[1], normal[2]]
+
+
+        
 
     indexes = []
 
@@ -107,10 +194,15 @@ def get_vertexs_and_indexes(mesh):
 
 def createCave(pipeline, meshs):
     # obtenemos los vértices e índices del suelo y del techo
-    sueloVertices, sueloIndices = get_vertexs_and_indexes(meshs[0])
-    techoVertices, techoIndices = get_vertexs_and_indexes(meshs[1])
+    sVertices, sIndices = get_vertexs_and_indexes(meshs[0],1)
+    tVertices, tIndices = get_vertexs_and_indexes(meshs[1],-1)
+    sueloShape = bs.Shape(sVertices, sIndices)
+    techoShape = bs.Shape(tVertices, tIndices)
 
-    return 
+    gpuSuelo = createGPUShape(pipeline, sueloShape)
+    gpuTecho = createGPUShape(pipeline, techoShape)
+
+    return gpuSuelo, gpuTecho
 
 def createScene(pipeline):
 

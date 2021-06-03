@@ -3,6 +3,7 @@ generador de mapas, donde en cada casilla (i,j) en N x M, tendrá 4 datos corres
 la altura del techo, el índice de textura del suelo y el índice de textura del techo """
 
 import numpy as np
+from numpy.random import randint
 
 def cuevaEjemplo(N):
     """ Una cueva sencilla, de altura tanto del suelo como del techo uniforme con una separación de 7 metros, y
@@ -12,8 +13,8 @@ def cuevaEjemplo(N):
     for i in range(N):
         for j in range(N):
             L = Matriz[i][j]
-            L[0]=1
-            L[1]=8
+            L[0]=randint(-1,2)
+            L[1]=randint(5,8)
             if i+j<N:
                 L[2]=0
                 L[3]=2
@@ -24,5 +25,8 @@ def cuevaEjemplo(N):
 
 # Funciones que guardan y cargan un archivo npy, en este caso, donde se guarda la matriz que funcionará de mapa
 
-#np.save("map.npy",cuevaEjemplo(50))
+np.save("map.npy",cuevaEjemplo(10))
 #Matriz = np.load("map.npy")
+
+
+print(cuevaEjemplo(10))
