@@ -115,29 +115,83 @@ def caveMesh(matriz):
     else:
         ys = np.linspace(-M-m, M+m-1, M*3)
 
+    # Se sabe que los puntos medios de los cuadrados comparten altura con los sus vecinos y por lo tanto son eliminados
+    a,b = 0,0
+    Xs = np.zeros(N*2)
+    Ys = np.zeros(M*2)
+
     # largo de arregles
-    lenXS = len(xs)
-    lenYS = len(ys)
+    lenXS = len(Xs)
+    lenYS = len(Ys)
+
+    A, B = 0,0
+    while a<len(xs):
+        if (a-1)%3 !=0:
+            Xs[A] = xs[a]
+            A += 1
+        a += 1
+    while b<len(ys):
+        if (b-1)%3 != 0:
+            Ys[B] = ys[b]
+            B += 1
+        b += 1
+
+
+    
 
     # Se generan los vértices de la malla, utilizando las alturas dadas
     for i in range(lenXS):
-        x = xs[i]
+        x = Xs[i]
         im = i//3   # Transforma el índice en su correspondiente celda de la matriz
         for j in range(lenYS):
-            y = ys[j]
+            y = Ys[j]
             jm = j//3 # Transforma el índice en su correspondiente celda de la matriz
             z0 = matriz[im][jm][0]
             z1 = matriz[im][jm][1]
             # Agregamos el vértice a la malla correspondiente
             sueloMesh.add_vertex([x, y, z0])
             techoMesh.add_vertex([x, y, z1])
-    
+
     # Se calcula el índice de cada punto (i, j) de la forma:
     index = lambda i, j: i*lenYS + j
 
     # Obtenemos los vertices de cada malla, y agregamos las caras
     vertexsuelo = list(sueloMesh.vertices())
     vertextecho = list(techoMesh.vertices())
+
+    # Eliminamos los puntos con altura similar
+    for i in range(1,lenXS-1):
+        for j in range(1, lenYS-1):
+            k = index(i, j)
+
+            neighbour = list(sueloMesh.vv(vertexsuelo[k]))
+            if len(neighbour)==8:   # No es un borde
+                point = list(sueloMesh.point(vertexsuelo[k]))
+                conservar = False
+                for vh in neighbour:
+                    pointvh = list(sueloMesh.point(vh))
+                    if point[2] != pointvh[2]:
+                        conservar = True
+                        break
+                if not conservar:
+                    sueloMesh.delete_vertex(vertexsuelo[k])
+    sueloMesh.garbage_collection()
+
+    for i in range(1,lenXS-1):
+        for j in range(1, lenYS-1):
+            k = index(i, j)
+            neighbour = list(techoMesh.vv(vertextecho[k]))
+            if len(neighbour)==8:   # No es un borde
+                point = list(techoMesh.point(vertextecho[k]))
+                conservar = False
+                for vh in neighbour:
+                    pointvh = list(techoMesh.point(vh))
+                    if point[2] != pointvh[2]:
+                        conservar = True
+                        break
+                if not conservar:
+                    techoMesh.delete_vertex(vertextecho[k])
+    techoMesh.garbage_collection()
 
     # Se crean las caras para cada cuadrado de la celda
     for i in range(lenXS-1):
@@ -153,6 +207,8 @@ def caveMesh(matriz):
 
             techoMesh.add_face(vertextecho[isw], vertextecho[ise], vertextecho[ine])
             techoMesh.add_face(vertextecho[ine], vertextecho[inw], vertextecho[isw])
+
+    
 
     # Se entregan las mallas
     return (sueloMesh, techoMesh)

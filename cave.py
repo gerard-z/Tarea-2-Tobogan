@@ -85,6 +85,9 @@ if __name__ == "__main__":
     LightPower = 0.8
     lightConcentration =30
     lightShininess = 1
+    constantAttenuation = 0.01
+    linearAttenuation = 0.03
+    quadraticAttenuation = 0.05
 
     # Application loop
     while not glfw.window_should_close(window):
@@ -157,18 +160,29 @@ if __name__ == "__main__":
             LightPower = 0.6
             lightConcentration = 50
             lightShininess = 1
+            linearAttenuation = 0.03
+            quadraticAttenuation = 0.05
+
         elif controller.light==2:
             LightPower = 0.8
             lightConcentration = 30
             lightShininess = 1
+            linearAttenuation = 0.02
+            quadraticAttenuation = 0.04
+
         elif controller.light==4:
             LightPower = 0
             lightConcentration = 1
             lightShininess = 0
+            linearAttenuation = 0.03
+            quadraticAttenuation = 0.05
+
         else:
             LightPower = 1
             lightConcentration = 10
             lightShininess = 1
+            linearAttenuation = 0.01
+            quadraticAttenuation = 0.02
         
         
         glUseProgram(lightingPipeline.shaderProgram)
@@ -202,9 +216,9 @@ if __name__ == "__main__":
         glUniform1ui(glGetUniformLocation(lightingPipeline.shaderProgram, "concentration"), lightConcentration)
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "lightDirection"), lightDirection[0], lightDirection[1], lightDirection[2])
         
-        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "constantAttenuation"), 0.01)
-        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "linearAttenuation"), 0.03)
-        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "quadraticAttenuation"), 0.05)
+        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "constantAttenuation"), constantAttenuation)
+        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
+        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
 
         glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
         glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
@@ -250,9 +264,9 @@ if __name__ == "__main__":
         glUniform1ui(glGetUniformLocation(phongTexPipeline.shaderProgram, "concentration"), lightConcentration)
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "lightDirection"), lightDirection[0], lightDirection[1], lightDirection[2])
         
-        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "constantAttenuation"), 0.001)
-        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "linearAttenuation"), 0.03)
-        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "quadraticAttenuation"), 0.01)
+        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "constantAttenuation"), constantAttenuation)
+        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
+        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
 
         glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
         glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
