@@ -77,17 +77,35 @@ def calculateNormal(mesh, vertex):
     Recibe el mesh y un vértice, utilizando la estructura halfedge calcula la normal de las caras
     adyacentes y los promedia para conseguir su norma.
     Por ahora no tiene en cuenta los cálculos previamente hechos :s"""
-    point0 = np.array(mesh.point(vertex))   #Coordenadas del vértice original
     normal = np.array([0, 0, 0])            # vector que promediará las normales de las caras adyacentes
-    for outhEdge in mesh.voh(vertex):
-        nexthEdge = mesh.next_halfedge_handle(outhEdge)                    # Obtiene el siguiente puntero
-        if mesh.to_vertex_handle(mesh.next_halfedge_handle(nexthEdge))== vertex:
-            point1= np.array(list(mesh.point(mesh.to_vertex_handle(outhEdge))))      # Obtiene otro vértice de la cara 
-            point2 = np.array(list(mesh.point(mesh.to_vertex_handle(nexthEdge))))    # Obtiene el último vértice de la cara
-            dir1 = point1 - point0          # Calcula el vector que va desde el primer vértice al segundo
-            dir2 = point1 - point2          # Calcula el vector que va desde el tercer vértice al segundo
-            cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara adyacente
-            normal = normal +  cruz/np.linalg.norm(cruz)   # Se suma la normal de la cara normalizada  
+
+    # Antiguo cálculo de normales, sin considerar atributo en la cara
+    point0 = np.array(mesh.point(vertex))   #Coordenadas del vértice original
+    #for outhEdge in mesh.voh(vertex):
+        #nexthEdge = mesh.next_halfedge_handle(outhEdge)                    # Obtiene el siguiente puntero
+        #if mesh.to_vertex_handle(mesh.next_halfedge_handle(nexthEdge))== vertex: # Se reviza que el puntero sea de la misma cara
+            #point1= np.array(list(mesh.point(mesh.to_vertex_handle(outhEdge))))      # Obtiene otro vértice de la cara 
+            #point2 = np.array(list(mesh.point(mesh.to_vertex_handle(nexthEdge))))    # Obtiene el último vértice de la cara
+            #dir1 = point1 - point0          # Calcula el vector que va desde el primer vértice al segundo
+            #dir2 = point1 - point2          # Calcula el vector que va desde el tercer vértice al segundo
+            #cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara adyacente
+            #normal = normal +  cruz/np.linalg.norm(cruz)   # Se suma la normal de la cara normalizada  
+    
+    # Cálculo de la normal considerando que cada cara tiene guardada su normal
+    outHalfEdge = mesh.halfedge_handle(vertex)  #Se obtiene el half edge de salida
+    OutHalfEdge = outHalfEdge
+    k = True # Se crea una variable que sirve para indicar si seguimos dentro de las caras vecinas
+    while k:
+        face = mesh.face_handle(outHalfEdge)        # Obtiene la cara ligada al half edge
+        nextHalfEdge = mesh.next_halfedge_handle(outHalfEdge)   # Obtiene el siguiente half edge 
+        if mesh.face_handle(nextHalfEdge) != face:    # Revisa que el siguiente half edge está ligado a la misma cara
+            k = False   # No lo está
+        else:
+            inHalfEdge = mesh.next_halfedge_handle(nextHalfEdge)    # Obtiene el siguiente half edge que apuntará al vértice nuevamente
+            outHalfEdge = mesh.opposite_halfedge_handle(inHalfEdge) # Se pasa al half edge opuesto que va en salida
+            if outHalfEdge == OutHalfEdge: k = False    # Volvemos al half edge del inicio
+            Normal = np.array(list(mesh.normal(face))) # Se obtiene la normal calculada en la cara
+            normal = normal + Normal    # Se suman las normales
 
     normal = normal/np.linalg.norm(normal)    # Se obtiene el promedio de las normales
     return normal
@@ -142,10 +160,10 @@ def caveMesh(matriz):
     # Se generan los vértices de la malla, utilizando las alturas dadas
     for i in range(lenXS):
         x = Xs[i]
-        im = i//3   # Transforma el índice en su correspondiente celda de la matriz
+        im = i//2   # Transforma el índice en su correspondiente celda de la matriz
         for j in range(lenYS):
             y = Ys[j]
-            jm = j//3 # Transforma el índice en su correspondiente celda de la matriz
+            jm = j//2 # Transforma el índice en su correspondiente celda de la matriz
             z0 = matriz[im][jm][0]
             z1 = matriz[im][jm][1]
             # Agregamos el vértice a la malla correspondiente
@@ -222,6 +240,21 @@ def get_vertexs_and_indexes(mesh, orientation):
 
     # Creamos una lista para los vertices e indices
     vertexs = []
+
+    # Se activa la propiedad de agregar normales en las caras, sin embargo, no se utilizará el método de openmesh para
+    # calcular dichas normales, sino se implementará una función propia para utilizar la estructura half-edge y simplemente
+    # utiizar dicho espacio para guardar el vector normal resultante.
+    mesh.request_face_normals()
+    # Se calcula la normal de cada cara
+    for face in mesh.faces():
+        vertices = list(mesh.fv(face)) # Se obtiene los vértices de la cara
+        P0 = np.array(mesh.point(vertices[0]).tolist())    # Se obtiene la coordenada del vértice 1
+        P1 = np.array(mesh.point(vertices[1]).tolist())    # Se obtiene la coordenada del vértice 2
+        P2 = np.array(mesh.point(vertices[2]).tolist())    # Se obtiene la coordenada del vértice 3
+        dir1 = P1 - P0          # Calcula el vector que va desde el primer vértice al segundo
+        dir2 = P1 - P2          # Calcula el vector que va desde el tercer vértice al segundo
+        cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara
+        mesh.set_normal(face, cruz/np.linalg.norm(cruz))    # Se guarda la normal normalizada como atributo en la cara
 
     # Obtenemos los vertices y los recorremos
     for vertex in mesh.vertices():

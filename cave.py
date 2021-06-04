@@ -69,12 +69,6 @@ if __name__ == "__main__":
     Matriz = np.load("map.npy")
     gpuSuelo, gpuTecho = createCave(phongPipeline, caveMesh(Matriz))
 
-    scene = createScene(phongPipeline)
-    cube1 = createCube1(phongPipeline)
-    cube2 = createCube2(phongPipeline)
-    tex_toroid = createTexToroidNode(phongTexPipeline, stonePath)
-    tex_toroid2 = createTexToroidNode(phongTexPipeline, dirtPath)
-
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
     # glfw will swap buffers as soon as possible
     glfw.swap_interval(0)
@@ -222,12 +216,9 @@ if __name__ == "__main__":
 
         glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
         glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
-        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
+        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
 
         # Drawing
-        sg.drawSceneGraphNode(scene, lightingPipeline, "model")
-        sg.drawSceneGraphNode(cube1, lightingPipeline, "model")
-        sg.drawSceneGraphNode(cube2, lightingPipeline, "model")
 
         #CUEVA
         lightingPipeline.drawCall(gpuSuelo)
@@ -268,17 +259,6 @@ if __name__ == "__main__":
         glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
         glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
 
-        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
-        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
-        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
-
-        sg.drawSceneGraphNode(tex_toroid, phongTexPipeline, "model")
-        # Características del otro toroide (como es tierra es más opaco)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ka"), 0.1, 0.1, 0.1)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Kd"), 0.4, 0.4, 0.4)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ks"), 0.0, 0.0, 0.0)
-        sg.drawSceneGraphNode(tex_toroid2, phongTexPipeline, "model", tr.matmul([tr.translate(1.21, 0.5, 0.55),tr.rotationY(-pi/4)]))
-
         # Dibuja la linterna para la visión en primera persona
         if controller.is_a_pressed:
             glUseProgram(pipeline2D.shaderProgram)
@@ -292,11 +272,6 @@ if __name__ == "__main__":
     gpuAxis.clear()
     gpuRedCube.clear()
     gpuRedQuad.clear()
-    tex_toroid2.clear()
-    tex_toroid.clear()
-    scene.clear()
-    cube1.clear()
-    cube2.clear()
     gpuSuelo.clear()
     gpuTecho.clear()
 
