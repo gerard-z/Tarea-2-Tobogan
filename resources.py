@@ -200,3 +200,48 @@ class Controller:
     # Función que entrega el ángulo theta
     def getThetaCamera(self):
         return self.camera.theta
+
+class Iluminacion:
+    def __init__(self):
+        self.LightPower = 0.8
+        self.lightConcentration =30
+        self.lightShininess = 1
+        self.constantAttenuation = 0.01
+        self.linearAttenuation = 0.03
+        self.quadraticAttenuation = 0.05
+
+    def setLight(self, Power, Concentration, Shininess, Attenuation):
+        self.LightPower = Power
+        self.lightConcentration = Concentration
+        self.lightShininess = Shininess
+        self.constantAttenuation = Attenuation[0]
+        self.linearAttenuation = Attenuation[1]
+        self.quadraticAttenuation = Attenuation[2]
+
+    def updateLight(self, Pipeline, Pos, Direction, Camera):
+        # Se guardan los variables
+        LightPower = self.LightPower
+        lightShininess = self.lightShininess
+        lightConcentration = self.lightConcentration
+        constantAttenuation = self.constantAttenuation
+        linearAttenuation = self.linearAttenuation
+        quadraticAttenuation = self.quadraticAttenuation
+        # Se activa el program
+        glUseProgram(Pipeline.shaderProgram)
+        # Se envían los uniforms
+        glUniform3fv(glGetUniformLocation(Pipeline.shaderProgram, "lightPos"), 1, Pos)
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, "La"), 0.3, 0.3, 0.3)
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, "Ld"), LightPower, LightPower, LightPower)
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, "Ls"), lightShininess, lightShininess, lightShininess)
+
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, "viewPosition"), Camera[0], Camera[1], Camera[2])
+        glUniform1ui(glGetUniformLocation(Pipeline.shaderProgram, "shininess"), 100)
+        glUniform1ui(glGetUniformLocation(Pipeline.shaderProgram, "concentration"), lightConcentration)
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, "lightDirection"), Direction[0], Direction[1], Direction[2])
+
+        glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "constantAttenuation"), constantAttenuation)
+        glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
+        glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
+
+
+# Funciones

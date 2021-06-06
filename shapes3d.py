@@ -80,7 +80,7 @@ def calculateNormal(mesh, vertex):
     normal = np.array([0, 0, 0])            # vector que promediará las normales de las caras adyacentes
 
     # Antiguo cálculo de normales, sin considerar atributo en la cara
-    point0 = np.array(mesh.point(vertex))   #Coordenadas del vértice original
+    #point0 = np.array(mesh.point(vertex))   #Coordenadas del vértice original
     #for outhEdge in mesh.voh(vertex):
         #nexthEdge = mesh.next_halfedge_handle(outhEdge)                    # Obtiene el siguiente puntero
         #if mesh.to_vertex_handle(mesh.next_halfedge_handle(nexthEdge))== vertex: # Se reviza que el puntero sea de la misma cara
@@ -115,7 +115,8 @@ def calculateNormal(mesh, vertex):
 
 def caveMesh(matriz):
     """ Se crea las 2 mallas de polígonos correspondiente al suelo y el techo, por conveniencia, se utilizarán celdas
-    de 2x2 metros cuadrados. (Considerando que los ejes se encontraran efectivamente en metros) """
+    de 5x5 metros cuadrados. (Considerando que los ejes se encontraran efectivamente en metros)
+    De esta manera, Lara será capaz de moverse por la celda. """
     sueloMesh = om.TriMesh()
     techoMesh = om.TriMesh()
     # Se obtienen las dimensiones de la matriz
@@ -125,13 +126,13 @@ def caveMesh(matriz):
     # Se crean arreglos que corresponderan al eje x e y de la cueva, de N+1 y M+1 vértices cada uno, de modo que
     # cada celda de la matriz sea generada por un cuadrado de 4 vértices
     if N%2!=0:
-        xs = np.linspace(-N-n, N+n, N*3)
+        xs = np.linspace(-3*N-n, 3*N+n, N*7)
     else:
-        xs = np.linspace(-N-n, N+n-1, N*3)
+        xs = np.linspace(-3*N-n, 3*N+n-1, N*7)
     if M%2!=0:
-        ys = np.linspace(-M-m, M+m, M*3)
+        ys = np.linspace(-3*M-m, 3*M+m, M*7)
     else:
-        ys = np.linspace(-M-m, M+m-1, M*3)
+        ys = np.linspace(-3*M-m, 3*M+m-1, M*7)
 
     # Se sabe que los puntos medios de los cuadrados comparten altura con los sus vecinos y por lo tanto son eliminados
     a,b = 0,0
@@ -144,12 +145,12 @@ def caveMesh(matriz):
 
     A, B = 0,0
     while a<len(xs):
-        if (a-1)%3 !=0:
+        if (a-1)%7 !=0 and (a-2)%7 !=0 and (a-3)%7 !=0 and (a-4)%7 !=0 and (a-6)%7 !=0:
             Xs[A] = xs[a]
             A += 1
         a += 1
     while b<len(ys):
-        if (b-1)%3 != 0:
+        if (b-1)%7 !=0 and (b-2)%7 !=0 and (b-3)%7 !=0 and (b-4)%7 !=0 and (b-6)%7 !=0:
             Ys[B] = ys[b]
             B += 1
         b += 1

@@ -39,14 +39,11 @@ if __name__ == "__main__":
     glfw.set_cursor_pos_callback(window, controller.cursor_pos_callback)
     glfw.set_mouse_button_callback(window, controller.mouse_button_callback)
 
-    # Different shader programs for different lighting strategies
-    #phongPipeline = nl.MultiplePhongShaderProgram()
-    #phongTexPipeline = nl.MultipleTexturePhongShaderProgram()
-
+    # Diferentes shader 3D que consideran la iluminación de la linterna
     phongPipeline = nl.SimplePhongSpotlightShaderProgram()
     phongTexPipeline = nl.SimplePhongTextureSpotlightShaderProgram()
 
-    # This shader program does not consider lighting
+    # Este shader 3D no considera la iluminación de la linterna
     mvpPipeline = es.SimpleModelViewProjectionShaderProgram()
 
     # Este shader es uno en 2D
@@ -72,16 +69,10 @@ if __name__ == "__main__":
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
     # glfw will swap buffers as soon as possible
     glfw.swap_interval(0)
+    
+    # Variables últies
     t0 = glfw.get_time()
-    r = 0.5
-    g = 0
-    b = 0.25
-    LightPower = 0.8
-    lightConcentration =30
-    lightShininess = 1
-    constantAttenuation = 0.01
-    linearAttenuation = 0.03
-    quadraticAttenuation = 0.05
+    light = Iluminacion()
 
     # Application loop
     while not glfw.window_should_close(window):
@@ -97,6 +88,7 @@ if __name__ == "__main__":
         # Using GLFW to check for input events
         glfw.poll_events()
 
+        # Definimos la cámara de la aplicación
         controller.update_camera(delta)
         camera = controller.get_camera()
         viewMatrix = camera.update_view()
@@ -129,135 +121,45 @@ if __name__ == "__main__":
             lightPos = controller.getEyeCamera()
 
         lightDirection = camera.at - camera.eye
-        lightingPipeline = phongPipeline
-        pi = np.pi
-        #lightposition0 = [1.7*np.cos(t1), 1.7*np.sin(t1), 2.3]
-        #lightposition1 = [1.7*np.cos(t1 + 2*pi/3), 1.7*np.sin(t1 + 2*pi/3), 2.3]
-        #lightposition2 = [1.7*np.cos(t1 + 4*pi/3), 1.7*np.sin(t1 + 4*pi/3), 2.3]
-        #lightposition0 = [0, 0, 2.3]
-
-        # CUEVA COLOR
-        #glUseProgram(mvpPipeline.shaderProgram)
-        #glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
-        #glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
-        #glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
-        #mvpPipeline.drawCall(gpuSuelo)
-        #mvpPipeline.drawCall(gpuTecho)
-
-
-        #c1 = np.abs(((0.5*t1+0.00) % 2)-1)
-        #c2 = np.abs(((0.5*t1+0.66) % 2)-1)
-        #c3 = np.abs(((0.5*t1+1.32) % 2)-1)
 
         # Setting all uniform shader variables
         if controller.light==1:
-            LightPower = 0.6
-            lightConcentration = 50
-            lightShininess = 1
-            linearAttenuation = 0.03
-            quadraticAttenuation = 0.05
+            light.setLight(0.6, 50, 1, [0.01, 0.03, 0.05])
 
         elif controller.light==2:
-            LightPower = 0.8
-            lightConcentration = 30
-            lightShininess = 1
-            linearAttenuation = 0.02
-            quadraticAttenuation = 0.04
+            light.setLight(0.8, 30, 1, [0.01, 0.02, 0.04])
 
         elif controller.light==4:
-            LightPower = 0
-            lightConcentration = 1
-            lightShininess = 0
-            linearAttenuation = 0.03
-            quadraticAttenuation = 0.05
+            light.setLight(0, 1, 0, [0.01, 0.03, 0.05])
 
         else:
-            LightPower = 1
-            lightConcentration = 10
-            lightShininess = 1
-            linearAttenuation = 0.01
-            quadraticAttenuation = 0.02
+            light.setLight(1, 10, 1, [0.01, 0.01, 0.02])
         
-        
-        glUseProgram(lightingPipeline.shaderProgram)
-        # Position of all light
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "lightPos0"), 1,lightposition0)
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "lightPos1"), 1,lightposition1)
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "lightPos2"), 1,lightposition2)
-        glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "lightPos"), 1,lightPos)
-
-        # White light in all components: ambient, diffuse and specular.
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "La0"), 1, [c1, c2, c3])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "La1"), 1, [c2, c3, c1])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "La2"), 1, [c3, c1, c2])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "Ld0"), 1, [c1, c2, c3])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "Ld1"), 1, [c2, c3, c1])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "Ld2"), 1, [c3, c1, c2])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls0"), 1, [c1, c2, c3])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls1"), 1, [c2, c3, c1])
-        #glUniform3fv(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls2"), 1, [c3, c1, c2])
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "La"), 0.1, 0.1, 0.1)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ld"), LightPower, LightPower, LightPower)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls"), lightShininess, lightShininess, lightShininess)
+        # Shader de colores
+        light.updateLight(phongPipeline, lightPos, lightDirection, camera.eye)
 
         # Object is barely visible at only ambient. Diffuse behavior is slightly red. Sparkles are white
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
+        glUniform3f(glGetUniformLocation(phongPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
+        glUniform3f(glGetUniformLocation(phongPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
+        glUniform3f(glGetUniformLocation(phongPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
 
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "viewPosition"), camera.eye[0], camera.eye[1], camera.eye[2])
-        glUniform1ui(glGetUniformLocation(lightingPipeline.shaderProgram, "shininess"), 100)
-        glUniform1ui(glGetUniformLocation(lightingPipeline.shaderProgram, "concentration"), lightConcentration)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "lightDirection"), lightDirection[0], lightDirection[1], lightDirection[2])
-        
-        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "constantAttenuation"), constantAttenuation)
-        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
-        glUniform1f(glGetUniformLocation(lightingPipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
-
-        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
-        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
-        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
+        # Enviar matrices de transformaciones
+        glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+        glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
 
         # Drawing
-
         #CUEVA
-        lightingPipeline.drawCall(gpuSuelo)
-        lightingPipeline.drawCall(gpuTecho)
+        phongPipeline.drawCall(gpuSuelo)
+        phongPipeline.drawCall(gpuTecho)
+
+        # Shaders de texturas
+        light.updateLight(phongTexPipeline, lightPos, lightDirection, camera.eye)
         
-        glUseProgram(phongTexPipeline.shaderProgram)
-        # Position of all light
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "lightPos0"), 1,lightposition0)
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "lightPos1"), 1,lightposition1)
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "lightPos2"), 1,lightposition2)
-        glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "lightPos"), 1,lightPos)
-
-        # White light in all components: ambient, diffuse and specular.
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "La0"), 1, [c1, c2, c3])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "La1"), 1, [c2, c3, c1])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "La2"), 1, [c3, c1, c2])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ld0"), 1, [c1, c2, c3])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ld1"), 1, [c2, c3, c1])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ld2"), 1, [c3, c1, c2])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ls0"), 1, [c1, c2, c3])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ls1"), 1, [c2, c3, c1])
-        #glUniform3fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ls2"), 1, [c3, c1, c2])
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "La"), 0.1, 0.1, 0.1)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ld"), LightPower, LightPower, LightPower)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ls"), lightShininess, lightShininess, lightShininess)
-
         # Object is barely visible at only ambient. Diffuse behavior is slightly red. Sparkles are white
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
-
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "viewPosition"), camera.eye[0], camera.eye[1], camera.eye[2])
-        glUniform1ui(glGetUniformLocation(phongTexPipeline.shaderProgram, "shininess"), 100)
-        glUniform1ui(glGetUniformLocation(phongTexPipeline.shaderProgram, "concentration"), lightConcentration)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "lightDirection"), lightDirection[0], lightDirection[1], lightDirection[2])
-        
-        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "constantAttenuation"), constantAttenuation)
-        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
-        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
 
         # Dibuja la linterna para la visión en primera persona
         if controller.is_a_pressed:
