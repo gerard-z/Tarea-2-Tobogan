@@ -45,6 +45,7 @@ if __name__ == "__main__":
     # Diferentes shader 3D que consideran la iluminación de la linterna
     phongPipeline = nl.SimplePhongSpotlightShaderProgram()
     phongTexPipeline = nl.SimplePhongTextureSpotlightShaderProgram()
+    #cavePipeline = nl.CavePhongTextureSpotlightShaderProgram()
 
     # Este shader 3D no considera la iluminación de la linterna
     mvpPipeline = es.SimpleModelViewProjectionShaderProgram()
@@ -137,6 +138,25 @@ if __name__ == "__main__":
 
         else:
             light.setLight(1, 10, 1, [0.01, 0.01, 0.02])
+
+        """
+        # Shader de la cueva
+        # Shaders de texturas
+        light.updateLight(cavePipeline, lightPos, lightDirection, camera.eye)
+        
+        # Object is barely visible at only ambient. Diffuse behavior is slightly red. Sparkles are white
+        glUniform3f(glGetUniformLocation(cavePipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
+        glUniform3f(glGetUniformLocation(cavePipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
+        glUniform3f(glGetUniformLocation(cavePipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
+
+        # Enviar matrices de transformaciones
+        glUniformMatrix4fv(glGetUniformLocation(cavePipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(cavePipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+
+        glUniformMatrix4fv(glGetUniformLocation(cavePipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
+
+        #Drawing
+        """
         
         # Shader de colores
         light.updateLight(phongPipeline, lightPos, lightDirection, camera.eye)

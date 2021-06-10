@@ -1,6 +1,5 @@
 """Funciones para crear distintas figuras y escenas en 3D """
 
-from numpy.core.arrayprint import format_float_scientific
 import openmesh as om
 import numpy as np
 import numpy.random as rd
@@ -16,6 +15,7 @@ thisFolderPath = os.path.dirname(thisFilePath)
 assetsDirectory = os.path.join(thisFolderPath, "sprites")
 stonePath = os.path.join(assetsDirectory, "stone.png")
 dirtPath = os.path.join(assetsDirectory, "dirt.png")
+texturasPath = os.path.join(assetsDirectory, "textures.png")
 
 # Convenience function to ease initialization
 def createGPUShape(pipeline, shape):
@@ -434,21 +434,25 @@ def caveMesh(matriz):
     techoMeshtex = om.TriMesh()
     sueloMeshtex.request_vertex_texcoords2D()
     techoMeshtex.request_vertex_texcoords2D()
-    #sueloMeshtex.add_property(om.VpropHandle(), "indiceTex")
 
     # Se crean las caras para cada cuadrado de la celda
     for i in range(lenXS-1):
+        im = i//7
         for j in range(lenYS-1):
+            jm = j//7
             # los índices:
             isw = index(i,j)
             ise = index(i+1,j)
             ine = index(i+1,j+1)
             inw = index(i,j+1)
             # Coordenadas de texturas
-            tsw = [0.0, 1.0]
-            tse = [1.0, 1.0]
-            tne = [1.0, 0.0]
-            tnw = [0.0, 0.0]
+            indice = matriz[im][jm][2]
+            tx = 1/12 * (indice)
+            tX = 1/12 * (indice+1)
+            tsw = [tx, 1]
+            tse = [tX, 1]
+            tne = [tX, 0]
+            tnw = [tx, 0]
             # Identificar vértices
             vsw = vertexsuelo[isw]
             vse = vertexsuelo[ise]
@@ -478,6 +482,14 @@ def caveMesh(matriz):
             Vse = techoMeshtex.add_vertex(techoMesh.point(vse).tolist())
             Vne = techoMeshtex.add_vertex(techoMesh.point(vne).tolist())
             Vnw = techoMeshtex.add_vertex(techoMesh.point(vnw).tolist())
+            # Coordenadas de texturas
+            indice = matriz[im][jm][3]
+            tx = 1/12 * (indice)
+            tX = 1/12 * (indice+1)
+            tsw = [tx, 1]
+            tse = [tX, 1]
+            tne = [tX, 0]
+            tnw = [tx, 0]
             # Agregar las coordenadas de texturas a los vertices
             techoMeshtex.set_texcoord2D(Vsw, tsw)
             techoMeshtex.set_texcoord2D(Vse, tse)
@@ -486,6 +498,7 @@ def caveMesh(matriz):
             # Se agregan las caras
             techoMeshtex.add_face(Vsw, Vse, Vne)
             techoMeshtex.add_face(Vne, Vnw, Vsw)
+
     del sueloMesh
     del techoMesh
     # Se entregan las mallas
@@ -519,16 +532,13 @@ def get_vertexs_and_indexes(mesh, orientation):
     # Obtenemos los vertices y los recorremos
     for vertex in mesh.vertices():
         vertexs += mesh.point(vertex).tolist()
-        # Agregamos un color al azar
+        # Agregamos las coordenadas de a textura y su índice
         vertexs += mesh.texcoord2D(vertex).tolist()
         # Agregamos la norma
         normal = calculateNormal(mesh, vertex)
         normal = orientation * normal
 
         vertexs += [normal[0], normal[1], normal[2]]
-
-
-        
 
     indexes = []
 
@@ -550,8 +560,8 @@ def createCave(pipeline, Matriz):
     sueloShape = bs.Shape(sVertices, sIndices)
     techoShape = bs.Shape(tVertices, tIndices)
 
-    gpuSuelo = createTextureGPUShape(sueloShape, pipeline, stonePath)
-    gpuTecho = createTextureGPUShape(techoShape, pipeline, dirtPath)
+    gpuSuelo = createTextureGPUShape(sueloShape, pipeline, texturasPath)
+    gpuTecho = createTextureGPUShape(techoShape, pipeline, texturasPath)
 
     return gpuSuelo, gpuTecho
 
