@@ -1,5 +1,6 @@
 """Funciones para crear distintas figuras y escenas en 3D """
 
+from numpy.core.arrayprint import format_float_scientific
 import openmesh as om
 import numpy as np
 import numpy.random as rd
@@ -110,7 +111,44 @@ def calculateNormal(mesh, vertex):
     normal = normal/np.linalg.norm(normal)    # Se obtiene el promedio de las normales
     return normal
 
+######## CREANDO UNA MALLA FRACTAL #####
+def fractalMesh(mesh, n):
+    k = 0
+    newMesh = om.TriMesh()
+    while k<n:
+        faces = list(mesh.faces())
+        for i in range(len(faces)-1):
+            vertexs = list(mesh.fv(faces[i]))
+            vertex1 = np.array(list(mesh.point(vertexs[0])))
+            vertex2 = np.array(list(mesh.point(vertexs[1])))
+            vertex3 = np.array(list(mesh.point(vertexs[2])))
 
+            vertex12 = (vertex1 + vertex2)/2
+            vertex23 = (vertex2 + vertex3)/2
+            vertex13 = (vertex1 + vertex3)/2
+
+            vertex12[2] = (0.5-rd.rand())*0.1 + vertex12[2]
+            vertex23[2] = (0.5-rd.rand())*0.1 + vertex23[2]
+            vertex13[2] = (0.5-rd.rand())*0.1 + vertex13[2]
+
+            v1 = newMesh.add_vertex(vertex1)
+            v2 = newMesh.add_vertex(vertex2)
+            v3 = newMesh.add_vertex(vertex3)
+            v12 = newMesh.add_vertex(vertex12)
+            v23 = newMesh.add_vertex(vertex23)
+            v13 = newMesh.add_vertex(vertex13)
+
+            #newMesh.add_face(v12, v13, v23)
+            newMesh.add_face(v1, v12, v13)
+            newMesh.add_face(v13, v23, v3)
+            newMesh.add_face(v12, v2, v23)
+            #newMesh.add_face(v1, v2, v3)
+
+        mesh = newMesh
+        k+=1
+        newMesh = om.TriMesh()
+
+    return mesh
 
 
 def caveMesh(matriz):
@@ -136,37 +174,49 @@ def caveMesh(matriz):
 
     # Se sabe que los puntos medios de los cuadrados comparten altura con los sus vecinos y por lo tanto son eliminados
     a,b = 0,0
-    Xs = np.zeros(N*2)
-    Ys = np.zeros(M*2)
+    Xs = np.zeros(N*3)
+    Ys = np.zeros(M*3)
 
     # largo de arregles
-    lenXS = len(Xs)
-    lenYS = len(Ys)
+    lenXS = len(Xs)-1
+    lenYS = len(Ys)-1
 
     A, B = 0,0
     while a<len(xs):
-        if (a-1)%7 !=0 and (a-2)%7 !=0 and (a-3)%7 !=0 and (a-4)%7 !=0 and (a-6)%7 !=0:
+        if (a-1)%7 !=0 and (a-2)%7 !=0 and (a-3)%7 !=0 and (a-4)%7 !=0:
             Xs[A] = xs[a]
             A += 1
         a += 1
     while b<len(ys):
-        if (b-1)%7 !=0 and (b-2)%7 !=0 and (b-3)%7 !=0 and (b-4)%7 !=0 and (b-6)%7 !=0:
+        if (b-1)%7 !=0 and (b-2)%7 !=0 and (b-3)%7 !=0 and (b-4)%7 !=0:
             Ys[B] = ys[b]
             B += 1
         b += 1
-
-
     
-
     # Se generan los vértices de la malla, utilizando las alturas dadas
     for i in range(lenXS):
         x = Xs[i]
-        im = i//2   # Transforma el índice en su correspondiente celda de la matriz
+        im = i//3   # Transforma el índice en su correspondiente celda de la matriz
+        a = False
         for j in range(lenYS):
             y = Ys[j]
-            jm = j//2 # Transforma el índice en su correspondiente celda de la matriz
+            jm = j//3 # Transforma el índice en su correspondiente celda de la matriz
+            b = False
             z0 = matriz[im][jm][0]
             z1 = matriz[im][jm][1]
+            if (i+1)//3 != im:
+                Im = im+1
+                z0 = (z0 + matriz[Im][jm][0])/2
+                a = True
+            if (j+1)//3 != jm:
+                Jm = jm+1
+                z0 = (z0 + matriz[im][Jm][0])/2
+                b = True
+            if a and b:
+                z0 = (matriz[im][jm][0] + matriz[im][Jm][0] + matriz[Im][Jm][0] + matriz[Im][jm][0])/4
+            
+            
+
             # Agregamos el vértice a la malla correspondiente
             sueloMesh.add_vertex([x, y, z0])
             techoMesh.add_vertex([x, y, z1])
@@ -178,39 +228,90 @@ def caveMesh(matriz):
     vertexsuelo = list(sueloMesh.vertices())
     vertextecho = list(techoMesh.vertices())
 
-    # Eliminamos los puntos con altura similar
-    for i in range(1,lenXS-1):
-        for j in range(1, lenYS-1):
-            k = index(i, j)
+    sueloMesh.request_vertex_texcoords2D()
+    techoMesh.request_vertex_texcoords2D()
+    # Agregamos texturas
+    for j in range(lenYS):      # en los bordes laterales de la cueva
+        k=j-2 
+        t = index(lenXS-1, j)
+        if j==0: # primer vértice
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1]))
+        elif j==1:
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1/6]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1/6]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
+        elif (k)%3==1:
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 5/6]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 5/6]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 5/6]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 5/6]))
+        elif (k)%3==0:
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 0]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 0]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
+        elif k%3==2:
+            sueloMesh.set_texcoord2D(vertexsuelo[k], np.array([0, 1/6]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
+            techoMesh.set_texcoord2D(vertexsuelo[k], np.array([0, 1/6]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
 
-            neighbour = list(sueloMesh.vv(vertexsuelo[k]))
-            if len(neighbour)==8:   # No es un borde
-                point = list(sueloMesh.point(vertexsuelo[k]))
-                conservar = False
-                for vh in neighbour:
-                    pointvh = list(sueloMesh.point(vh))
-                    if point[2] != pointvh[2]:
-                        conservar = True
-                        break
-                if not conservar:
-                    sueloMesh.delete_vertex(vertexsuelo[k])
-    sueloMesh.garbage_collection()
-
+    for i in range(1, lenXS):      # en los bordes horizontales de la cueva
+        k=i-2 
+        t = index(i, lenYS-1)
+        j = index(i, 0)
+        if i==1:
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
+        elif (k)%3==1:
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([1/6, 1]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1/6, 0]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([1/6, 1]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1/6, 0]))
+        elif (k)%3==0:
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([1, 1]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([1, 1]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
+        elif k%3==2:
+            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
+            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
+            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
+            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
+    """# El vértice esquina superior derecha
+    sueloMesh.set_texcoord2D(vertexsuelo[index(lenXS-1,lenYS-1)], np.array([1, 0]))
+    techoMesh.set_texcoord2D(vertexsuelo[index(lenXS-1,lenYS-1)], np.array([1, 0]))
+    """
+            
+    # Vértices en medio
     for i in range(1,lenXS-1):
-        for j in range(1, lenYS-1):
-            k = index(i, j)
-            neighbour = list(techoMesh.vv(vertextecho[k]))
-            if len(neighbour)==8:   # No es un borde
-                point = list(techoMesh.point(vertextecho[k]))
-                conservar = False
-                for vh in neighbour:
-                    pointvh = list(techoMesh.point(vh))
-                    if point[2] != pointvh[2]:
-                        conservar = True
-                        break
-                if not conservar:
-                    techoMesh.delete_vertex(vertextecho[k])
-    techoMesh.garbage_collection()
+        I = (i-2)%3
+        for j in range(1,lenYS-1):
+            k = index(i,j)
+            J = (j-2)%3
+            tex = np.array([0,0])
+            if I==0:
+                tex[0] = 1
+            elif I==1:
+                tex[0] = 1/6
+            else:
+                tex[0] = 5/6
+            if J==0:
+                tex[1] = 0
+            elif J==1:
+                tex[1] = 5/6
+            else:
+                tex[1] = 1/6
+            sueloMesh.set_texcoord2D(vertexsuelo[k], tex)
+            techoMesh.set_texcoord2D(vertexsuelo[k], tex)
+    # Notar que siempre falta una coordenada para cerrar la celda, esto es debido a que algunos vértices corresponderán
+    # al cierre de una celda y la apertura de otra. Se corregirá en el shader específico para la textura en la cueva
 
     # Se crean las caras para cada cuadrado de la celda
     for i in range(lenXS-1):
@@ -261,7 +362,7 @@ def get_vertexs_and_indexes(mesh, orientation):
     for vertex in mesh.vertices():
         vertexs += mesh.point(vertex).tolist()
         # Agregamos un color al azar
-        vertexs += [0.3, 1, 0.3]
+        vertexs += mesh.texcoord2D(vertex).tolist()
         # Agregamos la norma
         normal = calculateNormal(mesh, vertex)
         normal = orientation * normal

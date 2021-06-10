@@ -126,7 +126,15 @@ class Controller:
     # Función que obtiene las coordenadas de la posición del mouse y las traduce en coordenadas de openGL
     def cursor_pos_callback(self, window, x, y):
         mousePosX = 2 * (x - self.width/2) / self.width
-        mousePosY = 2 * (self.height/2 - y) / self.height
+
+        if y<0:
+            glfw.set_cursor_pos(window, x, 0)
+        elif y>self.height:
+            glfw.set_cursor_pos(window, x, self.height)
+
+
+        mousePosY = 2 * (y - self.height/2) / self.height
+
         self.mousePos = (mousePosX, mousePosY)
 
     # Función que identifica si los botones del mouse son presionados
@@ -170,7 +178,9 @@ class Controller:
 
         direction = np.array([self.camera.at[0] - self.camera.eye[0], self.camera.at[1] - self.camera.eye[1], 0])
         theta = -self.mousePos[0] * 2 * np.pi - np.pi/2
-        phi = -self.mousePos[1] * (np.pi/2-0.01) + np.pi/2
+
+        mouseY = self.mousePos[1]
+        phi = mouseY * (np.pi/2-0.01) + np.pi/2
 
         if self.camara == 3:
             if self.leftClickOn:

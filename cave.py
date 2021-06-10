@@ -36,8 +36,11 @@ if __name__ == "__main__":
     # Conectando las funciones: on_key, cursor_pos_callback, mouse_button_callback y scroll_callback del controlador al teclado y mouse
     glfw.set_key_callback(window, controller.on_key)
 
+    glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)  # Deja la cámara centrada en la ventana con movimiento ilimitado
+    glfw.set_cursor_pos(window, width/2, height/2)                  # Fija el mouse en el centro de la ventana
     glfw.set_cursor_pos_callback(window, controller.cursor_pos_callback)
     glfw.set_mouse_button_callback(window, controller.mouse_button_callback)
+
 
     # Diferentes shader 3D que consideran la iluminación de la linterna
     phongPipeline = nl.SimplePhongSpotlightShaderProgram()
