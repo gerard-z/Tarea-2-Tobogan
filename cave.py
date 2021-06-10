@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     # Cueva
     Matriz = np.load("map.npy")
-    gpuSuelo, gpuTecho = createCave(phongPipeline, caveMesh(Matriz))
+    gpuSuelo, gpuTecho = createCave(phongTexPipeline, Matriz)
 
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
     # glfw will swap buffers as soon as possible
@@ -149,12 +149,11 @@ if __name__ == "__main__":
         # Enviar matrices de transformaciones
         glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
         glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+
         glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
 
         # Drawing
-        #CUEVA
-        phongPipeline.drawCall(gpuSuelo)
-        phongPipeline.drawCall(gpuTecho)
+        
 
         # Shaders de texturas
         light.updateLight(phongTexPipeline, lightPos, lightDirection, camera.eye)
@@ -163,6 +162,17 @@ if __name__ == "__main__":
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
         glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
+
+        # Enviar matrices de transformaciones
+        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+
+        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
+
+        #Drawing
+        #CUEVA
+        phongTexPipeline.drawCall(gpuSuelo)
+        phongTexPipeline.drawCall(gpuTecho)
 
         # Dibuja la linterna para la visión en primera persona
         if controller.is_a_pressed:
