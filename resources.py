@@ -27,7 +27,7 @@ class ThirdCamera:
     def update_view(self):
         self.eye[0] = 3 * np.cos(self.theta) + self.at[0]
         self.eye[1] = 3 * np.sin(self.theta) + self.at[1]
-        #self.eye[2] = self.at[2]
+        self.eye[2] = self.at[2]
 
         viewMatrix = tr.lookAt(
             self.eye,
@@ -38,7 +38,7 @@ class ThirdCamera:
 
 class FirstCamera:
     def __init__(self, x, y):
-        self.at = np.array([x, y + 1.0, 0.0])
+        self.at = np.array([x, y + 3.0, 0.0])
         self.theta = -np.pi/2
         self.phi = np.pi/2
         self.eye = np.array([x, y, 0.0])
@@ -53,9 +53,9 @@ class FirstCamera:
 
     # Actualiza la matriz de vista y la retorna
     def update_view(self):
-        self.at[0] = np.cos(self.theta) * np.sin(self.phi) + self.eye[0]
-        self.at[1] = np.sin(self.theta) * np.sin(self.phi) + self.eye[1]
-        self.at[2] = np.cos(self.phi)
+        self.at[0] = 3*np.cos(self.theta) * np.sin(self.phi) + self.eye[0]
+        self.at[1] = 3*np.sin(self.theta) * np.sin(self.phi) + self.eye[1]
+        self.at[2] = 3*np.cos(self.phi) + self.eye[2]
 
         viewMatrix = tr.lookAt(
             self.eye,
@@ -75,17 +75,15 @@ class Controller:
         self.width = width
         self.height = height
 
-        self.is_up_pressed = False
-        self.is_down_pressed = False
-        self.is_left_pressed = False
-        self.is_right_pressed = False
         self.is_a_pressed = False
-        self.is_z_pressed = False
 
         self.camera = ThirdCamera(0, 0)
         self.camara = 3
 
         self.light = 2
+
+        self.suelo = None
+        self.techo = None
 
         self.leftClickOn = False
         self.rightClickOn = False
@@ -94,6 +92,36 @@ class Controller:
     # Función que retorna la cámara que se está utilizando
     def get_camera(self):
         return self.camera
+
+    # Función que entrega la posición del vector at
+    def getAtCamera(self):
+        return self.camera.at
+    
+    # Función que obtiene la posición del vector eye
+    def getEyeCamera(self):
+        return self.camera.eye
+
+    # Función que entrega el ángulo theta
+    def getThetaCamera(self):
+        return self.camera.theta
+
+    # Función que le entrega el mapa al controlador
+    def setMap(self, suelo, techo):
+        # Se calcula si es posible avanzar en ciertas coordenadas
+        """
+        (n, m) = suelo.shape
+        for i in range(n):
+            for j in range(m):
+                # Caso borde, pared obligatoria, por lo tanto, no puede pasar
+                if i==0 or j==0 or i==n-1 or j==m-1:
+                    suelo[i][j] = True
+                #else:
+                    # Se estudia la altura de las posiciones adyacentes
+           """         
+
+        
+        self.suelo = suelo
+        self.techo = techo
 
     # Función que detecta que tecla se está presionando
     def on_key(self, window, key, scancode, action, mods):
@@ -161,7 +189,7 @@ class Controller:
             if (button == glfw.MOUSE_BUTTON_2):
                 self.rightClickOn = False
 
-    #Funcion que recibe el input para manejar la camara y el tipo de esta
+    #Funcion que recibe el input para manejar la camara y el tipo de esta, incluye ek movimiento del personaje
     def update_camera(self, delta):
         # Selecciona la cámara a utilizar
         if self.is_a_pressed and self.camara != 1:
@@ -175,44 +203,53 @@ class Controller:
             self.camera = ThirdCamera(x, y)
             self.camara = 3
 
+        suelo = self.suelo
+        (N, M) = suelo.shape
+        techo = self.techo
+        n = np.ceil(N/2)
+        m = np.ceil(M/2)
 
         direction = np.array([self.camera.at[0] - self.camera.eye[0], self.camera.at[1] - self.camera.eye[1], 0])
+        dx, dy = direction[0]/3, direction[1]/3
         theta = -self.mousePos[0] * 2 * np.pi - np.pi/2
 
         mouseY = self.mousePos[1]
         phi = mouseY * (np.pi/2-0.01) + np.pi/2
 
         if self.camara == 3:
-            if self.leftClickOn:
+            x = self.camera.at[0]+n
+            y = self.camera.at[1]+m
+            if self.leftClickOn and techo[int(np.round(x+dx))][int(np.round(y+dy))]>=self.camera.at[2]:
                 self.camera.at += direction * delta
 
-            if self.rightClickOn:
+            if self.rightClickOn and techo[int(np.round(x-dx))][int(np.round(y-dy))]>=self.camera.at[2]:
                 self.camera.at -= direction * delta
+            
+            x = int(self.camera.at[0]+n)
+            y = int(self.camera.at[1]+m)
+            self.camera.at[2] = suelo[x][y]+1.2
+            
         elif self.camara == 1:
-            if self.leftClickOn:
-                self.camera.eye += direction * delta * 3
+            x = self.camera.at[0]+n
+            y = self.camera.at[1]+m
+            if self.leftClickOn and techo[int(np.round(x+dx))][int(np.round(y+dy))]>=self.camera.eye[2]+0.5:
+                self.camera.eye += direction * delta
 
-            if self.rightClickOn:
-                self.camera.eye -= direction * delta * 3
+            if self.rightClickOn and techo[int(np.round(x-dx))][int(np.round(y-dy))]>=self.camera.eye[2]+0.5:
+                self.camera.eye -= direction * delta
             self.camera.set_phi(phi)
+
+            x = int(self.camera.eye[0]+n)
+            y = int(self.camera.eye[1]+m)
+            self.camera.eye[2] = suelo[x][y]+0.7
 
 
         self.camera.set_theta(theta)
 
-    # Función que entrega la posición del vector at
-    def getAtCamera(self):
-        return self.camera.at
-    
-    # Función que obtiene la posición del vector eye
-    def getEyeCamera(self):
-        return self.camera.eye
-
-    # Función que entrega el ángulo theta
-    def getThetaCamera(self):
-        return self.camera.theta
-
+# Clase iluminación, crea los parámetros y las funciones para inicializar los shaders con normales.
 class Iluminacion:
     def __init__(self):
+        # Características de la luz por defecto
         self.LightPower = 0.8
         self.lightConcentration =30
         self.lightShininess = 1
@@ -220,6 +257,7 @@ class Iluminacion:
         self.linearAttenuation = 0.03
         self.quadraticAttenuation = 0.05
 
+    # fija los nuevos datos para la luz
     def setLight(self, Power, Concentration, Shininess, Attenuation):
         self.LightPower = Power
         self.lightConcentration = Concentration
@@ -228,6 +266,7 @@ class Iluminacion:
         self.linearAttenuation = Attenuation[1]
         self.quadraticAttenuation = Attenuation[2]
 
+    # Actualiza los parámetros de la luz al shader
     def updateLight(self, Pipeline, Pos, Direction, Camera):
         # Se guardan los variables
         LightPower = self.LightPower

@@ -196,7 +196,20 @@ def caveMesh(matriz):
             B += 1
         b += 1
 
+    # Mapear el desplazamiento
+    # Creamos una nueva matriz con todas las coordenadas de la cueva
+    spos = np.zeros((N*7-1, M*7-1))
+    tpos = np.zeros((N*7-1, M*7-1))
+    for i in range(N*7-1):
+        for j in range(N*7-1):
+            im = i//7
+            jm = j//7
+            zs = Matriz[im][jm][0]
+            zt = Matriz[im][jm][1]
+            spos[x][y] = zs
+            tpos[x][y] = zt
     """
+    Alturas = np.zeros((lenXS, lenYS, 2))
 
     # Se generan los vértices de la malla, utilizando las alturas dadas
     for i in range(lenXS):
@@ -212,19 +225,27 @@ def caveMesh(matriz):
             if (i+1)//7 != im:
                 Im = im+1
                 z0 = (z0 + matriz[Im][jm][0])/2
+                z1 = (z1 + matriz[Im][jm][1])/2
                 a = True
             if (j+1)//7 != jm:
                 Jm = jm+1
                 z0 = (z0 + matriz[im][Jm][0])/2
+                z1 = (z1 + matriz[im][Jm][1])/2
                 b = True
             if a and b:
                 z0 = (matriz[im][jm][0] + matriz[im][Jm][0] + matriz[Im][Jm][0] + matriz[Im][jm][0])/4
+                z1 = (matriz[im][jm][1] + matriz[im][Jm][1] + matriz[Im][Jm][1] + matriz[Im][jm][1])/4
             
-            
+            # Condición borde, para cerrar las paredes y que no se pueda salir al vacío
+            if i==0 or j==0 or i==lenXS-1 or j==lenYS-1:
+                z1 = z0
 
             # Agregamos el vértice a la malla correspondiente
             sueloMesh.add_vertex([x, y, z0])
             techoMesh.add_vertex([x, y, z1])
+            # Agregamos la altura a la matriz de altura
+            Alturas[i, j, 0] = z0
+            Alturas[i, j, 1] = z1
 
     # Se calcula el índice de cada punto (i, j) de la forma:
     index = lambda i, j: i*lenYS + j
@@ -232,201 +253,6 @@ def caveMesh(matriz):
     # Obtenemos los vertices de cada malla, y agregamos las caras
     vertexsuelo = list(sueloMesh.vertices())
     vertextecho = list(techoMesh.vertices())
-
-    """
-    # Agregamos texturas
-    for j in range(lenYS):      # en los bordes laterales de la cueva
-        k=j-2 
-        t = index(lenXS-1, j)
-        if j==0: # primer vértice
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1]))
-        elif j==1:
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1/6]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 1/6]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
-        elif (k)%3==1:
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 5/6]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 5/6]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 5/6]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 5/6]))
-        elif (k)%3==0:
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 0]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([0, 0]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
-        elif k%3==2:
-            sueloMesh.set_texcoord2D(vertexsuelo[k], np.array([0, 1/6]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
-            techoMesh.set_texcoord2D(vertexsuelo[k], np.array([0, 1/6]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 1/6]))
-
-    for i in range(1, lenXS):      # en los bordes horizontales de la cueva
-        k=i-2 
-        t = index(i, lenYS-1)
-        j = index(i, 0)
-        if i==1:
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
-        elif (k)%3==1:
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([1/6, 1]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1/6, 0]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([1/6, 1]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1/6, 0]))
-        elif (k)%3==0:
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([1, 1]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([1, 1]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([1, 0]))
-        elif k%3==2:
-            sueloMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
-            sueloMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
-            techoMesh.set_texcoord2D(vertexsuelo[j], np.array([5/6, 1]))
-            techoMesh.set_texcoord2D(vertexsuelo[t], np.array([5/6, 0]))
-    # El vértice esquina superior derecha
-    #sueloMesh.set_texcoord2D(vertexsuelo[index(lenXS-1,lenYS-1)], np.array([1, 0]))
-    #techoMesh.set_texcoord2D(vertexsuelo[index(lenXS-1,lenYS-1)], np.array([1, 0]))
-            
-    # Vértices en medio
-    for i in range(1,lenXS-1):
-        I = (i-2)%3
-        for j in range(1,lenYS-1):
-            k = index(i,j)
-            J = (j-2)%3
-            tex = np.array([0,0])
-            if I==0:
-                tex[0] = 1
-            elif I==1:
-                tex[0] = 1/6
-            else:
-                tex[0] = 5/6
-            if J==0:
-                tex[1] = 0
-            elif J==1:
-                tex[1] = 5/6
-            else:
-                tex[1] = 1/6
-            sueloMesh.set_texcoord2D(vertexsuelo[k], tex)
-            techoMesh.set_texcoord2D(vertexsuelo[k], tex)
-    # Notar que siempre falta una coordenada para cerrar la celda, esto es debido a que algunos vértices corresponderán
-    # al cierre de una celda y la apertura de otra. Se corregirá en el shader específico para la textura en la cueva
-    
-    # Se generan los nuevos mesh que contienen las texturas (Se rehace ya que cada hay vértices que contienen
-    # 4 coordenadas de texturas)
-    sueloMeshtex = om.TriMesh()
-    techoMeshtex = om.TriMesh()
-    sueloMeshtex.request_vertex_texcoords2D()
-    techoMeshtex.request_vertex_texcoords2D()
-    # Se crean las caras en las esquinas
-    j=0
-    while j==0 or j==lenYS-3:
-        i=0
-        while i==0 or i==lenXS-3:
-            isw = index(i,j)
-            ise = index(i+1,j)
-            isee = index(i+2, j)
-            icw = index(i,j+1)
-            ice = index(i+1,j+1)
-            icee = index(i+2, j+1)
-            inw = index(i, j+2)
-            ine = index(i+1, j+2)
-            inee = index(i+2, j+2)
-            # Se reconocen los vértices y se agregan sus texturas
-            Vsw = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[isw]))
-            sueloMeshtex.set_texcoord2D(Vsw, np.array([0.0, 1.0]))
-
-            Vsee = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[isee]))
-            sueloMeshtex.set_texcoord2D(Vsee, np.array([1.0, 1.0]))
-
-            Vcw = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[icw]))
-            sueloMeshtex.set_texcoord2D(Vcw, np.array([0.0, 1/6]))
-
-            Vcee = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[icee]))
-            sueloMeshtex.set_texcoord2D(Vcee, np.array([1.0, 1/6]))
-
-            Vnw = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[inw]))
-            sueloMeshtex.set_texcoord2D(Vnw, np.array([0.0, 0.0]))
-
-            Vnee = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[inee]))
-            sueloMeshtex.set_texcoord2D(Vnee, np.array([1.0, 0.0]))
-
-            tys = 1.0
-            tyc = 5/6
-            tyn = 0.0
-            tx = 1/6
-            if i==0:
-                tx=5/6
-            if j==0:
-                tyc=1/6
-
-            Vse = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[ise]))
-            sueloMeshtex.set_texcoord2D(Vse, np.array([tx, tys]))
-            Vce = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[ice]))
-            sueloMeshtex.set_texcoord2D(Vce, np.array([tx, tyc]))
-            Vne = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[ine]))
-            sueloMeshtex.set_texcoord2D(Vne, np.array([tx, tyn]))
-
-            # Se agregan las caras
-            sueloMeshtex.add_face(Vsw, Vse, Vce)
-            sueloMeshtex.add_face(Vsw, Vcw, Vce)
-            sueloMeshtex.add_face(Vcw, Vce, Vne)
-            sueloMeshtex.add_face(Vcw, Vnw, Vne)
-            sueloMeshtex.add_face(Vse, Vsee, Vcee)
-            sueloMeshtex.add_face(Vse, Vce, Vcee)
-            sueloMeshtex.add_face(Vce, Vcee, Vnee)
-            sueloMeshtex.add_face(Vce, Vne, Vnee)
-
-            # Se reconocen los vértices y se agregan sus texturas
-            Vsw = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[isw]))
-            sueloMeshtex.set_texcoord2D(Vsw, np.array([0.0, 1.0]))
-
-            Vsee = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[isee]))
-            sueloMeshtex.set_texcoord2D(Vsee, np.array([1.0, 1.0]))
-
-            Vcw = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[icw]))
-            sueloMeshtex.set_texcoord2D(Vcw, np.array([0.0, 1/6]))
-
-            Vcee = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[icee]))
-            sueloMeshtex.set_texcoord2D(Vcee, np.array([1.0, 1/6]))
-
-            Vnw = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[inw]))
-            sueloMeshtex.set_texcoord2D(Vnw, np.array([0.0, 0.0]))
-
-            Vnee = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[inee]))
-            sueloMeshtex.set_texcoord2D(Vnee, np.array([1.0, 0.0]))
-
-            tys = 1.0
-            tyc = 5/6
-            tyn = 0.0
-            tx = 1/6
-            if i==0:
-                tx=5/6
-            if j==0:
-                tyc=1/6
-
-            Vse = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[ise]))
-            sueloMeshtex.set_texcoord2D(Vse, np.array([tx, tys]))
-            Vce = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[ice]))
-            sueloMeshtex.set_texcoord2D(Vce, np.array([tx, tyc]))
-            Vne = sueloMeshtex.add_vertex(sueloMesh.point(vertexsuelo[ine]))
-            sueloMeshtex.set_texcoord2D(Vne, np.array([tx, tyn]))
-
-            # Se agregan las caras
-            sueloMeshtex.add_face(Vsw, Vse, Vce)
-            sueloMeshtex.add_face(Vsw, Vcw, Vce)
-            sueloMeshtex.add_face(Vcw, Vce, Vne)
-            sueloMeshtex.add_face(Vcw, Vnw, Vne)
-            sueloMeshtex.add_face(Vse, Vsee, Vcee)
-            sueloMeshtex.add_face(Vse, Vce, Vcee)
-            sueloMeshtex.add_face(Vce, Vcee, Vnee)
-            sueloMeshtex.add_face(Vce, Vne, Vnee)
-
-    """
 
     # Se generan los nuevos mesh que contienen las texturas (Se rehace ya que cada hay vértices que contienen
     # 4 coordenadas de texturas)
@@ -437,9 +263,9 @@ def caveMesh(matriz):
 
     # Se crean las caras para cada cuadrado de la celda
     for i in range(lenXS-1):
-        im = i//7
+        im = (i+1)//7
         for j in range(lenYS-1):
-            jm = j//7
+            jm = (j+1)//7
             # los índices:
             isw = index(i,j)
             ise = index(i+1,j)
@@ -502,7 +328,7 @@ def caveMesh(matriz):
     del sueloMesh
     del techoMesh
     # Se entregan las mallas
-    return (sueloMeshtex, techoMeshtex)
+    return (sueloMeshtex, techoMeshtex, Alturas)
 
 def get_vertexs_and_indexes(mesh, orientation):
     # Obtenemos las caras de la malla
@@ -513,6 +339,7 @@ def get_vertexs_and_indexes(mesh, orientation):
 
     # Creamos una lista para los vertices e indices
     vertexs = []
+    indexes = []
 
     # Se activa la propiedad de agregar normales en las caras, sin embargo, no se utilizará el método de openmesh para
     # calcular dichas normales, sino se implementará una función propia para utilizar la estructura half-edge y simplemente
@@ -531,7 +358,8 @@ def get_vertexs_and_indexes(mesh, orientation):
 
     # Obtenemos los vertices y los recorremos
     for vertex in mesh.vertices():
-        vertexs += mesh.point(vertex).tolist()
+        point = mesh.point(vertex).tolist()
+        vertexs += point
         # Agregamos las coordenadas de a textura y su índice
         vertexs += mesh.texcoord2D(vertex).tolist()
         # Agregamos la norma
@@ -539,8 +367,6 @@ def get_vertexs_and_indexes(mesh, orientation):
         normal = orientation * normal
 
         vertexs += [normal[0], normal[1], normal[2]]
-
-    indexes = []
 
     for face in faces:
         # Obtenemos los vertices de la cara
@@ -554,16 +380,24 @@ def get_vertexs_and_indexes(mesh, orientation):
 def createCave(pipeline, Matriz):
     # Creamos las mallas
     meshs = caveMesh(Matriz)
+    (N, M, k) = meshs[2].shape
     # obtenemos los vértices e índices del suelo y del techo
     sVertices, sIndices = get_vertexs_and_indexes(meshs[0],1)
     tVertices, tIndices = get_vertexs_and_indexes(meshs[1],-1)
     sueloShape = bs.Shape(sVertices, sIndices)
     techoShape = bs.Shape(tVertices, tIndices)
 
+    spos = np.zeros((N, M))
+    tpos = np.zeros((N, M))
+    spos = meshs[2][:, :, 0]
+    tpos = meshs[2][:, :, 1]
+
+    
+
     gpuSuelo = createTextureGPUShape(sueloShape, pipeline, texturasPath)
     gpuTecho = createTextureGPUShape(techoShape, pipeline, texturasPath)
 
-    return gpuSuelo, gpuTecho
+    return gpuSuelo, gpuTecho, spos, tpos
 
 def createScene(pipeline):
 

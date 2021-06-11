@@ -20,8 +20,8 @@ if __name__ == "__main__":
     if not glfw.init():
         glfw.set_window_should_close(window, True)
 
-    width = 600
-    height = 600
+    width = 800
+    height = 800
     title = "Lara Jones: Cave"
 
     window = glfw.create_window(width, height, title, None, None)
@@ -67,8 +67,12 @@ if __name__ == "__main__":
     gpuRedQuad = createGPUShape(pipeline2D, bs.createColorQuad(1, 0, 0))
 
     # Cueva
-    Matriz = np.load("map.npy")
-    gpuSuelo, gpuTecho = createCave(phongTexPipeline, Matriz)
+    Matriz = np.load("prueba.npy")
+    # Se obtiene la gpu del suelo y techo, y sus respectivos vértices para la zona caminable
+    gpuSuelo, gpuTecho, spos, tpos = createCave(phongTexPipeline, Matriz)
+
+    # Se le entrega la información de los vértices al jugador
+    controller.setMap(spos, tpos)
 
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
     # glfw will swap buffers as soon as possible
@@ -138,25 +142,6 @@ if __name__ == "__main__":
 
         else:
             light.setLight(1, 10, 1, [0.01, 0.01, 0.02])
-
-        """
-        # Shader de la cueva
-        # Shaders de texturas
-        light.updateLight(cavePipeline, lightPos, lightDirection, camera.eye)
-        
-        # Object is barely visible at only ambient. Diffuse behavior is slightly red. Sparkles are white
-        glUniform3f(glGetUniformLocation(cavePipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
-        glUniform3f(glGetUniformLocation(cavePipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
-        glUniform3f(glGetUniformLocation(cavePipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
-
-        # Enviar matrices de transformaciones
-        glUniformMatrix4fv(glGetUniformLocation(cavePipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
-        glUniformMatrix4fv(glGetUniformLocation(cavePipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
-
-        glUniformMatrix4fv(glGetUniformLocation(cavePipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
-
-        #Drawing
-        """
         
         # Shader de colores
         light.updateLight(phongPipeline, lightPos, lightDirection, camera.eye)
@@ -177,17 +162,18 @@ if __name__ == "__main__":
 
         # Shaders de texturas
         light.updateLight(phongTexPipeline, lightPos, lightDirection, camera.eye)
-        
-        # Object is barely visible at only ambient. Diffuse behavior is slightly red. Sparkles are white
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
-        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
 
         # Enviar matrices de transformaciones
         glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
         glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+        
+        # Iluminación del material
+        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
+        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
+        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ks"), 8.0, 8.0, 8.0)
 
-        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0,0,-2))
+        # Transformación del modelo
+        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
 
         #Drawing
         #CUEVA
