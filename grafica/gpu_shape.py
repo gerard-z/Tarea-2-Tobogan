@@ -68,4 +68,68 @@ class GPUShape:
 
         if self.vao != None:
             glDeleteVertexArrays(1, [self.vao])
+
+class GPUShapeMulti:
+    def __init__(self, cantidad):
+        """VAO, VBO, EBO and texture handlers to GPU memory, con multiples texturas"""
         
+        self.vao = None
+        self.vbo = None
+        self.ebo = None
+        self.texture = []
+        self.size = None
+        self.cantidad = cantidad
+
+    def initBuffers(self):
+        """Convenience function for initialization of OpenGL buffers.
+        It returns itself to enable the convenience call:
+        gpuShape = GPUShape().initBuffers()
+
+        Note: this is not the default constructor as you may want
+        to use some already existing buffers.
+        """
+        self.vao = glGenVertexArrays(1)
+        self.vbo = glGenBuffers(1)
+        self.ebo = glGenBuffers(1)
+        return self
+
+    def setTexture(self, path):
+        pass
+
+    def __str__(self):
+        textura = str(self.texture[0])
+        for i in range(1, self.cantidad):
+            textura+=" "+str(self.texture[i])
+        
+        return "vao=" + str(self.vao) +\
+            "  vbo=" + str(self.vbo) +\
+            "  ebo=" + str(self.ebo) +\
+            "  tex=" + textura
+
+    def fillBuffers(self, vertices, indices, usage):
+
+        vertexData = np.array(vertices, dtype=np.float32)
+        indices = np.array(indices, dtype=np.uint32)
+
+        self.size = len(indices)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, len(vertexData) * SIZE_IN_BYTES, vertexData, usage)
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, len(indices) * SIZE_IN_BYTES, indices, usage)
+
+    def clear(self):
+        """Freeing GPU memory"""
+        for i in range(self.cantidad):
+            if self.texture[i] != None:
+                glDeleteTextures(1, [self.texture[i]])
+        
+        if self.ebo != None:
+            glDeleteBuffers(1, [self.ebo])
+
+        if self.vbo != None:
+            glDeleteBuffers(1, [self.vbo])
+
+        if self.vao != None:
+            glDeleteVertexArrays(1, [self.vao])

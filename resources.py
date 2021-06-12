@@ -13,10 +13,10 @@ from numpy import random as rd
 
 # Cámara en tercera persona
 class ThirdCamera:
-    def __init__(self, x, y):
-        self.at = np.array([x, y, 0.1])
+    def __init__(self, x, y , z):
+        self.at = np.array([x, y, z+0.1])
         self.theta = -np.pi/2
-        self.eye = np.array([x, y - 3.0, 0.1])
+        self.eye = np.array([x, y - 3.0, z + 0.1])
         self.up = np.array([0, 0, 1])
 
     # Determina el ángulo theta
@@ -37,11 +37,11 @@ class ThirdCamera:
         return viewMatrix
 
 class FirstCamera:
-    def __init__(self, x, y):
-        self.at = np.array([x, y + 3.0, 0.0])
+    def __init__(self, x, y, z):
+        self.at = np.array([x, y + 3.0, z + 0.0])
         self.theta = -np.pi/2
         self.phi = np.pi/2
-        self.eye = np.array([x, y, 0.0])
+        self.eye = np.array([x, y, z + 0.0])
         self.up = np.array([0, 0, 1])
 
     # Determina el ángulo theta
@@ -71,13 +71,13 @@ class FirstCamera:
 class Controller:
     def __init__(self, width, height):
         self.fillPolygon = True
-        self.showAxis = True
+        self.waterEffect = False
         self.width = width
         self.height = height
 
         self.is_a_pressed = False
 
-        self.camera = ThirdCamera(0, 0)
+        self.camera = ThirdCamera(0, 0, 2.5)
         self.camara = 3
 
         self.light = 2
@@ -108,16 +108,13 @@ class Controller:
     # Función que le entrega el mapa al controlador
     def setMap(self, suelo, techo):
         # Se calcula si es posible avanzar en ciertas coordenadas
-        """
-        (n, m) = suelo.shape
-        for i in range(n):
-            for j in range(m):
-                # Caso borde, pared obligatoria, por lo tanto, no puede pasar
-                if i==0 or j==0 or i==n-1 or j==m-1:
-                    suelo[i][j] = True
-                #else:
-                    # Se estudia la altura de las posiciones adyacentes
-           """         
+        (N, M) = (suelo.N, suelo.M)
+        sueloV = np.array(suelo.mesh.points())
+        techoV = np.array(techo.points())
+        x = sueloV[: , 0]
+        y = sueloV[: , 1]
+        zs = sueloV[:, 2]
+        zt = techoV[:, 2]
 
         
         self.suelo = suelo
@@ -134,7 +131,7 @@ class Controller:
                 glfw.set_window_should_close(window, True)
 
             if key == glfw.KEY_LEFT_CONTROL:
-                self.showAxis = not self.showAxis
+                self.waterEffect = not self.waterEffect
 
             if key == glfw.KEY_A:
                 self.is_a_pressed = not self.is_a_pressed
@@ -195,19 +192,21 @@ class Controller:
         if self.is_a_pressed and self.camara != 1:
             x = self.camera.at[0]
             y = self.camera.at[1]
-            self.camera = FirstCamera(x, y)
+            z = self.camera.at[2]-0.1
+            self.camera = FirstCamera(x, y, z)
             self.camara = 1
         elif not self.is_a_pressed and self.camara != 3:
             x = self.camera.eye[0]
             y = self.camera.eye[1]
-            self.camera = ThirdCamera(x, y)
+            z = self.camera.eye[2]
+            self.camera = ThirdCamera(x, y, z)
             self.camara = 3
 
-        suelo = self.suelo
-        (N, M) = suelo.shape
-        techo = self.techo
-        n = np.ceil(N/2)
-        m = np.ceil(M/2)
+        #suelo = self.suelo
+        #(N, M) = suelo.shape
+        #techo = self.techo
+        #n = np.ceil(N/2)
+        #m = np.ceil(M/2)
 
         direction = np.array([self.camera.at[0] - self.camera.eye[0], self.camera.at[1] - self.camera.eye[1], 0])
         dx, dy = direction[0]/3, direction[1]/3
@@ -217,31 +216,31 @@ class Controller:
         phi = mouseY * (np.pi/2-0.01) + np.pi/2
 
         if self.camara == 3:
-            x = self.camera.at[0]+n
-            y = self.camera.at[1]+m
-            if self.leftClickOn and techo[int(np.round(x+dx))][int(np.round(y+dy))]>=self.camera.at[2]:
+            #x = self.camera.at[0]+n
+            #y = self.camera.at[1]+m
+            if self.leftClickOn:# and techo[int(np.round(x+dx))][int(np.round(y+dy))]>=self.camera.at[2]:
                 self.camera.at += direction * delta
 
-            if self.rightClickOn and techo[int(np.round(x-dx))][int(np.round(y-dy))]>=self.camera.at[2]:
+            if self.rightClickOn:# and techo[int(np.round(x-dx))][int(np.round(y-dy))]>=self.camera.at[2]:
                 self.camera.at -= direction * delta
             
-            x = int(self.camera.at[0]+n)
-            y = int(self.camera.at[1]+m)
-            self.camera.at[2] = suelo[x][y]+1.2
+            #x = int(self.camera.at[0]+n)
+            #y = int(self.camera.at[1]+m)
+            #self.camera.at[2] = suelo[x][y]+1.2
             
         elif self.camara == 1:
-            x = self.camera.at[0]+n
-            y = self.camera.at[1]+m
-            if self.leftClickOn and techo[int(np.round(x+dx))][int(np.round(y+dy))]>=self.camera.eye[2]+0.5:
+            #x = self.camera.at[0]+n
+            #y = self.camera.at[1]+m
+            if self.leftClickOn:# and techo[int(np.round(x+dx))][int(np.round(y+dy))]>=self.camera.eye[2]+0.5:
                 self.camera.eye += direction * delta
 
-            if self.rightClickOn and techo[int(np.round(x-dx))][int(np.round(y-dy))]>=self.camera.eye[2]+0.5:
+            if self.rightClickOn:# and techo[int(np.round(x-dx))][int(np.round(y-dy))]>=self.camera.eye[2]+0.5:
                 self.camera.eye -= direction * delta
             self.camera.set_phi(phi)
 
-            x = int(self.camera.eye[0]+n)
-            y = int(self.camera.eye[1]+m)
-            self.camera.eye[2] = suelo[x][y]+0.7
+            #x = int(self.camera.eye[0]+n)
+            #y = int(self.camera.eye[1]+m)
+            #self.camera.eye[2] = suelo[x][y]+0.7
 
 
         self.camera.set_theta(theta)
@@ -292,5 +291,60 @@ class Iluminacion:
         glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
         glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
 
+# Clase para guardar datos
+class mallaTam:
+    def __init__(self, mesh, N, M):
+        self.mesh = mesh
+        self.N = N
+        self.M = M
+        
+
 
 # Funciones
+
+def UseProgram2D(Pipeline):
+    glUseProgram(Pipeline.shaderProgram)
+    # Se envían los uniforms
+
+
+def calculateNormal(mesh):
+    """ om.mesh() -> 
+    Recibe el mesh, utilizando la estructura halfedge calcula la normal de las caras
+    adyacentes y los promedia para conseguir su norma.
+    Por ahora no tiene en cuenta los cálculos previamente hechos :s"""
+
+    # Se activa la propiedad de agregar normales en las caras, sin embargo, no se utilizará el método de openmesh para
+    # calcular dichas normales, sino se implementará una función propia para utilizar la estructura half-edge y simplemente
+    # utiizar dicho espacio para guardar el vector normal resultante.
+    mesh.request_face_normals()
+    # Se calcula la normal de cada cara
+    for face in mesh.faces():
+        vertices = list(mesh.fv(face)) # Se obtiene los vértices de la cara
+        P0 = np.array(mesh.point(vertices[0]))    # Se obtiene la coordenada del vértice 1
+        P1 = np.array(mesh.point(vertices[1]))    # Se obtiene la coordenada del vértice 2
+        P2 = np.array(mesh.point(vertices[2]))    # Se obtiene la coordenada del vértice 3
+        dir1 = P1 - P0          # Calcula el vector que va desde el primer vértice al segundo
+        dir2 = P1 - P2          # Calcula el vector que va desde el tercer vértice al segundo
+        cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara
+        mesh.set_normal(face, cruz/np.linalg.norm(cruz))    # Se guarda la normal normalizada como atributo en la cara 
+    
+    # Cálculo de la normal considerando que cada cara tiene guardada su normal
+    mesh.request_vertex_normals()
+    for vertex in mesh.vertices():
+        normal = np.array([0, 0, 0])            # vector que promediará las normales de las caras adyacentes
+        outHalfEdge = mesh.halfedge_handle(vertex)  #Se obtiene el half edge de salida
+        OutHalfEdge = outHalfEdge
+        k = True # Se crea una variable que sirve para indicar si seguimos dentro de las caras vecinas
+        while k:
+            face = mesh.face_handle(outHalfEdge)        # Obtiene la cara ligada al half edge
+            nextHalfEdge = mesh.next_halfedge_handle(outHalfEdge)   # Obtiene el siguiente half edge 
+            if mesh.face_handle(nextHalfEdge) != face:    # Revisa que el siguiente half edge está ligado a la misma cara
+                k = False   # No lo está
+            else:
+                inHalfEdge = mesh.next_halfedge_handle(nextHalfEdge)    # Obtiene el siguiente half edge que apuntará al vértice nuevamente
+                outHalfEdge = mesh.opposite_halfedge_handle(inHalfEdge) # Se pasa al half edge opuesto que va en salida
+                if outHalfEdge == OutHalfEdge: k = False    # Volvemos al half edge del inicio
+                Normal = np.array(mesh.normal(face)) # Se obtiene la normal calculada en la cara
+                normal = normal + Normal    # Se suman las normales
+        normal = normal/np.linalg.norm(normal)    # Se obtiene el promedio de las normales
+        mesh.set_normal(vertex, normal)

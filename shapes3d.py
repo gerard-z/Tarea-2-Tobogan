@@ -9,12 +9,13 @@ import grafica.easy_shaders as es
 import grafica.transformations as tr
 import grafica.scene_graph as sg
 import sys, os.path
+from resources import *
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 thisFilePath = os.path.abspath(__file__)
 thisFolderPath = os.path.dirname(thisFilePath)
 assetsDirectory = os.path.join(thisFolderPath, "sprites")
-stonePath = os.path.join(assetsDirectory, "stone.png")
-dirtPath = os.path.join(assetsDirectory, "dirt.png")
+waterPath = os.path.join(assetsDirectory, "water.png")
+displacementPath = os.path.join(assetsDirectory, "displacement.png")
 texturasPath = os.path.join(assetsDirectory, "textures.png")
 
 # Convenience function to ease initialization
@@ -24,13 +25,24 @@ def createGPUShape(pipeline, shape):
     gpuShape.fillBuffers(shape.vertices, shape.indices, GL_STATIC_DRAW)
     return gpuShape
 
-def createTextureGPUShape(shape, pipeline, path):
+def createTextureGPUShape(shape, pipeline, path, sWrapMode=GL_CLAMP_TO_EDGE, tWrapMode=GL_CLAMP_TO_EDGE, minFilterMode=GL_NEAREST, maxFilterMode=GL_NEAREST, mode=GL_STATIC_DRAW):
     # Funcion Conveniente para facilitar la inicializacion de un GPUShape con texturas
     gpuShape = es.GPUShape().initBuffers()
     pipeline.setupVAO(gpuShape)
-    gpuShape.fillBuffers(shape.vertices, shape.indices, GL_STATIC_DRAW)
+    gpuShape.fillBuffers(shape.vertices, shape.indices, mode)
     gpuShape.texture = es.textureSimpleSetup(
-        path, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST)
+        path, sWrapMode, tWrapMode, minFilterMode, maxFilterMode)
+    return gpuShape
+
+def createMultipleTextureGPUShape(shape, pipeline, paths, sWrapMode=GL_CLAMP_TO_EDGE, tWrapMode=GL_CLAMP_TO_EDGE, minFilterMode=GL_NEAREST, maxFilterMode=GL_NEAREST, mode=GL_STATIC_DRAW):
+    # Funcion Conveniente para facilitar la inicializacion de un GPUShape con texturas
+    Cantidad = len(paths)
+    gpuShape = es.GPUShapeMulti(Cantidad).initBuffers()
+    pipeline.setupVAO(gpuShape)
+    gpuShape.fillBuffers(shape.vertices, shape.indices, mode)
+    for i in range(Cantidad):
+        gpuShape.texture.append( es.textureSimpleSetup(
+            paths[i], sWrapMode, tWrapMode, minFilterMode, maxFilterMode))
     return gpuShape
 
 def Curve(typeCurve, V1, V2, V3, V4, N):
@@ -73,80 +85,46 @@ def Curve(typeCurve, V1, V2, V3, V4, N):
 
     return curve
 
-def calculateNormal(mesh, vertex):
-    """ om.mesh() vertex -> np.array3
-    Recibe el mesh y un vértice, utilizando la estructura halfedge calcula la normal de las caras
-    adyacentes y los promedia para conseguir su norma.
-    Por ahora no tiene en cuenta los cálculos previamente hechos :s"""
-    normal = np.array([0, 0, 0])            # vector que promediará las normales de las caras adyacentes
 
-    # Antiguo cálculo de normales, sin considerar atributo en la cara
-    #point0 = np.array(mesh.point(vertex))   #Coordenadas del vértice original
-    #for outhEdge in mesh.voh(vertex):
-        #nexthEdge = mesh.next_halfedge_handle(outhEdge)                    # Obtiene el siguiente puntero
-        #if mesh.to_vertex_handle(mesh.next_halfedge_handle(nexthEdge))== vertex: # Se reviza que el puntero sea de la misma cara
-            #point1= np.array(list(mesh.point(mesh.to_vertex_handle(outhEdge))))      # Obtiene otro vértice de la cara 
-            #point2 = np.array(list(mesh.point(mesh.to_vertex_handle(nexthEdge))))    # Obtiene el último vértice de la cara
-            #dir1 = point1 - point0          # Calcula el vector que va desde el primer vértice al segundo
-            #dir2 = point1 - point2          # Calcula el vector que va desde el tercer vértice al segundo
-            #cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara adyacente
-            #normal = normal +  cruz/np.linalg.norm(cruz)   # Se suma la normal de la cara normalizada  
-    
-    # Cálculo de la normal considerando que cada cara tiene guardada su normal
-    outHalfEdge = mesh.halfedge_handle(vertex)  #Se obtiene el half edge de salida
-    OutHalfEdge = outHalfEdge
-    k = True # Se crea una variable que sirve para indicar si seguimos dentro de las caras vecinas
-    while k:
-        face = mesh.face_handle(outHalfEdge)        # Obtiene la cara ligada al half edge
-        nextHalfEdge = mesh.next_halfedge_handle(outHalfEdge)   # Obtiene el siguiente half edge 
-        if mesh.face_handle(nextHalfEdge) != face:    # Revisa que el siguiente half edge está ligado a la misma cara
-            k = False   # No lo está
-        else:
-            inHalfEdge = mesh.next_halfedge_handle(nextHalfEdge)    # Obtiene el siguiente half edge que apuntará al vértice nuevamente
-            outHalfEdge = mesh.opposite_halfedge_handle(inHalfEdge) # Se pasa al half edge opuesto que va en salida
-            if outHalfEdge == OutHalfEdge: k = False    # Volvemos al half edge del inicio
-            Normal = np.array(list(mesh.normal(face))) # Se obtiene la normal calculada en la cara
-            normal = normal + Normal    # Se suman las normales
 
-    normal = normal/np.linalg.norm(normal)    # Se obtiene el promedio de las normales
-    return normal
+######################################################
+
 
 ######## CREANDO UNA MALLA FRACTAL #####
 def fractalMesh(mesh, n):
     k = 0
-    newMesh = om.TriMesh()
     while k<n:
-        faces = list(mesh.faces())
-        for i in range(len(faces)-1):
-            vertexs = list(mesh.fv(faces[i]))
-            vertex1 = np.array(list(mesh.point(vertexs[0])))
-            vertex2 = np.array(list(mesh.point(vertexs[1])))
-            vertex3 = np.array(list(mesh.point(vertexs[2])))
+        newMesh = om.TriMesh()
+        for face in mesh.faces():
+            vertexs = list(mesh.fv(face))
+            vertex1 = np.array(mesh.point(vertexs[0]))
+            vertex2 = np.array(mesh.point(vertexs[1]))
+            vertex3 = np.array(mesh.point(vertexs[2]))
 
             vertex12 = (vertex1 + vertex2)/2
             vertex23 = (vertex2 + vertex3)/2
             vertex13 = (vertex1 + vertex3)/2
 
-            vertex12[2] = (0.5-rd.rand())*0.1 + vertex12[2]
-            vertex23[2] = (0.5-rd.rand())*0.1 + vertex23[2]
-            vertex13[2] = (0.5-rd.rand())*0.1 + vertex13[2]
+            vertex12[2] = (rd.rand()-0.5)*0.1 + vertex12[2]
+            vertex23[2] = (rd.rand()-0.5)*0.1 + vertex23[2]
+            vertex13[2] = (rd.rand()-0.5)*0.1 + vertex13[2]
 
             v1 = newMesh.add_vertex(vertex1)
-            v2 = newMesh.add_vertex(vertex2)
-            v3 = newMesh.add_vertex(vertex3)
             v12 = newMesh.add_vertex(vertex12)
+            v2 = newMesh.add_vertex(vertex2)
             v23 = newMesh.add_vertex(vertex23)
+            v3 = newMesh.add_vertex(vertex3)
             v13 = newMesh.add_vertex(vertex13)
 
-            #newMesh.add_face(v12, v13, v23)
             newMesh.add_face(v1, v12, v13)
+            newMesh.add_face(v12, v13, v23)
             newMesh.add_face(v13, v23, v3)
             newMesh.add_face(v12, v2, v23)
             #newMesh.add_face(v1, v2, v3)
 
         mesh = newMesh
         k+=1
-        newMesh = om.TriMesh()
+        del newMesh
 
     return mesh
 
@@ -155,8 +133,8 @@ def caveMesh(matriz):
     """ Se crea las 2 mallas de polígonos correspondiente al suelo y el techo, por conveniencia, se utilizarán celdas
     de 5x5 metros cuadrados. (Considerando que los ejes se encontraran efectivamente en metros)
     De esta manera, Lara será capaz de moverse por la celda. """
-    sueloMesh = om.TriMesh()
-    techoMesh = om.TriMesh()
+    suelo = om.TriMesh()
+    techo = om.TriMesh()
     # Se obtienen las dimensiones de la matriz
     (N, M, k) = matriz.shape
     n= N//2
@@ -177,39 +155,6 @@ def caveMesh(matriz):
     # largo de arregles
     lenXS = len(xs)-1
     lenYS = len(ys)-1
-
-    """
-    # Se sabe que los puntos medios de los cuadrados comparten altura con los sus vecinos y por lo tanto son eliminados
-    a,b = 0,0
-    Xs = np.zeros(N*3)
-    Ys = np.zeros(M*3)
-
-    A, B = 0,0
-    while a<len(xs):
-        if (a-1)%7 !=0 and (a-2)%7 !=0 and (a-3)%7 !=0 and (a-4)%7 !=0:
-            Xs[A] = xs[a]
-            A += 1
-        a += 1
-    while b<len(ys):
-        if (b-1)%7 !=0 and (b-2)%7 !=0 and (b-3)%7 !=0 and (b-4)%7 !=0:
-            Ys[B] = ys[b]
-            B += 1
-        b += 1
-
-    # Mapear el desplazamiento
-    # Creamos una nueva matriz con todas las coordenadas de la cueva
-    spos = np.zeros((N*7-1, M*7-1))
-    tpos = np.zeros((N*7-1, M*7-1))
-    for i in range(N*7-1):
-        for j in range(N*7-1):
-            im = i//7
-            jm = j//7
-            zs = Matriz[im][jm][0]
-            zt = Matriz[im][jm][1]
-            spos[x][y] = zs
-            tpos[x][y] = zt
-    """
-    Alturas = np.zeros((lenXS, lenYS, 2))
 
     # Se generan los vértices de la malla, utilizando las alturas dadas
     for i in range(lenXS):
@@ -241,13 +186,48 @@ def caveMesh(matriz):
                 z1 = z0
 
             # Agregamos el vértice a la malla correspondiente
-            sueloMesh.add_vertex([x, y, z0])
-            techoMesh.add_vertex([x, y, z1])
-            # Agregamos la altura a la matriz de altura
-            Alturas[i, j, 0] = z0
-            Alturas[i, j, 1] = z1
+            suelo.add_vertex([x, y, z0])
+            techo.add_vertex([x, y, z1])
 
     # Se calcula el índice de cada punto (i, j) de la forma:
+    index = lambda i, j: i*lenYS + j
+    # Obtenemos los vertices de cada malla, y agregamos las caras
+    vertexsuelo = list(suelo.vertices())
+    vertextecho = list(techo.vertices())
+
+    # Creamos las caras para esta malla (Y usar esta orientación para los factoriales)
+    for i in range(lenXS-1):
+        for j in range(lenYS-1):
+            # los índices:
+            isw = index(i,j)
+            ise = index(i+1,j)
+            ine = index(i+1,j+1)
+            inw = index(i,j+1)
+            # Identificar vértices
+            Vsw = vertexsuelo[isw]
+            Vse = vertexsuelo[ise]
+            Vne = vertexsuelo[ine]
+            Vnw = vertexsuelo[inw]
+            # Se agregan las caras
+            suelo.add_face(Vsw, Vse, Vne)
+            suelo.add_face(Vne, Vnw, Vsw)
+            # Identificar vértices
+            Vsw = vertextecho[isw]
+            Vse = vertextecho[ise]
+            Vne = vertextecho[ine]
+            Vnw = vertextecho[inw]
+            # Se agregan las caras
+            techo.add_face(Vsw, Vse, Vne)
+            techo.add_face(Vne, Vnw, Vsw)
+
+
+    # Se aplican fractales a la malla
+    fractal = 0
+    sueloMesh = fractalMesh(suelo, fractal)
+    techoMesh = fractalMesh(techo, fractal)
+    lenXS += (lenXS-1)*(2**fractal -1)
+    lenYS += (lenYS-1)*(2**fractal -1)
+
     index = lambda i, j: i*lenYS + j
 
     # Obtenemos los vertices de cada malla, y agregamos las caras
@@ -261,11 +241,13 @@ def caveMesh(matriz):
     sueloMeshtex.request_vertex_texcoords2D()
     techoMeshtex.request_vertex_texcoords2D()
 
+    indexMat = 7 + 6*(2**fractal -1)
+
     # Se crean las caras para cada cuadrado de la celda
     for i in range(lenXS-1):
-        im = (i+1)//7
+        im = (i+1)//indexMat
         for j in range(lenYS-1):
-            jm = (j+1)//7
+            jm = (j+1)//indexMat
             # los índices:
             isw = index(i,j)
             ise = index(i+1,j)
@@ -328,7 +310,7 @@ def caveMesh(matriz):
     del sueloMesh
     del techoMesh
     # Se entregan las mallas
-    return (sueloMeshtex, techoMeshtex, Alturas)
+    return (sueloMeshtex, techoMeshtex, lenXS, lenYS)
 
 def get_vertexs_and_indexes(mesh, orientation):
     # Obtenemos las caras de la malla
@@ -340,21 +322,6 @@ def get_vertexs_and_indexes(mesh, orientation):
     # Creamos una lista para los vertices e indices
     vertexs = []
     indexes = []
-
-    # Se activa la propiedad de agregar normales en las caras, sin embargo, no se utilizará el método de openmesh para
-    # calcular dichas normales, sino se implementará una función propia para utilizar la estructura half-edge y simplemente
-    # utiizar dicho espacio para guardar el vector normal resultante.
-    mesh.request_face_normals()
-    # Se calcula la normal de cada cara
-    for face in mesh.faces():
-        vertices = list(mesh.fv(face)) # Se obtiene los vértices de la cara
-        P0 = np.array(mesh.point(vertices[0]).tolist())    # Se obtiene la coordenada del vértice 1
-        P1 = np.array(mesh.point(vertices[1]).tolist())    # Se obtiene la coordenada del vértice 2
-        P2 = np.array(mesh.point(vertices[2]).tolist())    # Se obtiene la coordenada del vértice 3
-        dir1 = P1 - P0          # Calcula el vector que va desde el primer vértice al segundo
-        dir2 = P1 - P2          # Calcula el vector que va desde el tercer vértice al segundo
-        cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara
-        mesh.set_normal(face, cruz/np.linalg.norm(cruz))    # Se guarda la normal normalizada como atributo en la cara
 
     # Obtenemos los vertices y los recorremos
     for vertex in mesh.vertices():
@@ -380,24 +347,19 @@ def get_vertexs_and_indexes(mesh, orientation):
 def createCave(pipeline, Matriz):
     # Creamos las mallas
     meshs = caveMesh(Matriz)
-    (N, M, k) = meshs[2].shape
     # obtenemos los vértices e índices del suelo y del techo
     sVertices, sIndices = get_vertexs_and_indexes(meshs[0],1)
     tVertices, tIndices = get_vertexs_and_indexes(meshs[1],-1)
     sueloShape = bs.Shape(sVertices, sIndices)
     techoShape = bs.Shape(tVertices, tIndices)
 
-    spos = np.zeros((N, M))
-    tpos = np.zeros((N, M))
-    spos = meshs[2][:, :, 0]
-    tpos = meshs[2][:, :, 1]
-
-    
+    suelo = mallaTam(meshs[0], meshs[2], meshs[3])
+    techo = meshs[1]
 
     gpuSuelo = createTextureGPUShape(sueloShape, pipeline, texturasPath)
     gpuTecho = createTextureGPUShape(techoShape, pipeline, texturasPath)
 
-    return gpuSuelo, gpuTecho, spos, tpos
+    return gpuSuelo, gpuTecho, suelo, techo
 
 def createScene(pipeline):
 
