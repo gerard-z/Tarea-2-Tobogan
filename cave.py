@@ -1,5 +1,4 @@
-""" Módulo principal que genera el escenario del juego, la cueva y a Lara Jones, con todas las mecánicas
-integradas y en general, la main scene. """
+""" Segunda parte, creación del tobogán, modelando un bote con OBJ, donde el tobogán tiene agua y obstáculos de por medio """
 
 import glfw
 from OpenGL.GL import *
