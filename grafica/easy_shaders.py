@@ -362,15 +362,19 @@ class WaterTextureTransformShaderProgram:
             {
                 vec4 finalColor;
                 vec4 waterColor = texture(TexWater, outTexCoords);
-                vec2 displaCoords= vec2(mod(outTexCoords.x + time/3, 1), mod(outTexCoords.y - time/3, 1));
+                vec2 displaCoords= vec2(mod((outTexCoords.x*0.8+0.1) + time/3, 1), mod((outTexCoords.y*0.8+0.1) - time/3, 1));
                 vec4 displacement = texture(TexDisplacement, displaCoords);
-                if(waterEffect==1){
+                if(waterEffect==3){
                     float desplazamiento = dot(displacement, vec4(1,1,1,1))/20;
                     vec2 TexCoords= vec2(mod(outTexCoords.x + desplazamiento- time, 1), mod(outTexCoords.y +desplazamiento - time, 1));
                     waterColor = texture(TexWater, TexCoords);
                     finalColor = waterColor;
                 }else{
-                    finalColor = waterColor;
+                    if (waterEffect == 1){
+                        finalColor = waterColor;
+                    } else{
+                        finalColor = displacement;
+                    }
                 }
                 
                 outColor = finalColor;

@@ -1,4 +1,7 @@
 """ Primera parte, implementación de la técnica Displacement mapping para generar el efecto de corriente de agua.
+1: La textura de agua
+2: La textura de ruido
+3: Agua con efectos
 Gerard Cathalifaud Salazar"""
 
 import glfw
@@ -85,16 +88,11 @@ if __name__ == "__main__":
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-        
-        if (controller.waterEffect):
-            waterEffect = 1
-        else:
-            waterEffect = 0
 
         # Dibujar el cuadrado
         # Binding samplers to both texture units
         
-        glUniform1i(glGetUniformLocation(waterShader.shaderProgram, "waterEffect"), waterEffect)
+        glUniform1i(glGetUniformLocation(waterShader.shaderProgram, "waterEffect"), controller.light)
         glUniform1f(glGetUniformLocation(waterShader.shaderProgram, "time"), T)
 
         waterShader.drawCall(gpuWater)

@@ -388,14 +388,54 @@ def createCave(pipeline, Matriz):
     return gpuSuelo, gpuTecho, suelo, techo
 
 ########## Curva Nonuniform splines ##############################
+class CatmullRom:
+    """ Crear una curva catmull rom"""
+    def __init__(self, posiciones):
+        """ Crea una curva catmull rom, en base a curvas de Hermite que van desde 0 a 1 cada una, descartando el primer y último nodo posición, manteniendo una continuidad C1"""
+        self.posiciones = posiciones
+        self.nodos = posiciones.shape[0]
+        self.MCR = np.array([[0, -0.5, 1, -0.5], [1, 0, -2.5, 1.5], [0, 0.5, 2, -1.5], [0, 0, -0.5, 0.5]]) # Matriz que contiene la formulación de la curva
+        self.tiempo = self.nodos-3
+
+    def getPosition(self, tiempo):
+        """ Calcula la posición de la curva grande, estimando entre que nodos  está y calcular la curva de HERMITE que describe entre los nodos que se encuentra la posición en el tiempo"""
+        assert tiempo<self.tiempo, "El tiempo a evaluar debe estar dentro del rango parametrizado del tiempo"
+        T = int(tiempo)
+        i = T+1
+        t = tiempo-T     # Tiempo entre 0 y 1
+        pos = self.posiciones
+        G = np.concatenate((np.array([pos[i-1]]).T, np.array([pos[i]]).T, np.array([pos[i+1]]).T, np.array([pos[i+2]]).T), axis=1)
+        matriz = np.matmul(G, self.MCR)
+        T = generateT(t)
+        return np.matmul(matriz, T).T
+
+    def drawGraph(self, pipeline, N):
+        "Dibuja un gráfico en 2D, utilizando el pipeline entregado en formato Lines."
+        dt = self.tiempo/N
+        vertices = []
+        indices = range(N)
+        for i in range(N):
+            t = i * dt
+            pos = self.getPosition(t)[0]
+            vertices += [pos[0], pos[1], pos[2], 1, 0, 0] # posición rojo
+        shape = bs.Shape(vertices, indices)
+        gpu = createGPUShape(pipeline, shape)
+        return gpu
+
+
 class CurvaNoUniforme:
     """ Crear una curva no uniforme de clase C2, para empezar, se debe dividir el tiempo de cada intervalo entre puntos en proporción al largo del segmento.
     De esta manera, el recorrido va tener una velocidad media. Para esto se utilizan intervalos de curvas de Hermite"""
-    def __init__(self, posiciones, velocidad):
+    def __init__(self, posiciones, velocidad, tangenteIN, tangenteFin):
         """ Entregar el vector de posiciones donde deberá recorrer la curva y la velocidad promedio de recorrido """
         self.posiciones = posiciones
-        self.velocidades = []
-        self.Nodos = len(posiciones) # Número de nodos que tiene la curva
+        self.tangentes = [tangenteIN]
+        self.Nodos = posiciones.shape[0] # Número de nodos que tiene la curva
+        for i in range(1,self.Nodos-1):
+            tangente = self.posiciones[i+1]-self.posiciones[i-1]
+            tangente /= 2
+            self.tangentes.append(tangente)
+        self.tangentes.append(tangenteFin)
         self.distancias = []
         self.distanciaMax = 0
         for i in range(self.Nodos-1):
@@ -418,7 +458,20 @@ class CurvaNoUniforme:
             i += 1
         t = distancia - distanciaActual
         t /= self.distancias[i]     # Tiempo entre 0 y 1
-        return Curveposition("Hermite", self.posiciones[i], self.posiciones[i+1], self.velocidad, self.velocidad, t)
+        return Curveposition("Hermite", np.array([self.posiciones[i]]).T, np.array([self.posiciones[i+1]]).T, np.array([self.tangentes[i]]).T, np.array([self.tangentes[i+1]]).T, t)
+    
+    def drawGraph(self, pipeline, N):
+        "Dibuja un gráfico en 2D, utilizando el pipeline entregado en formato Lines."
+        dt = self.tiempo/N
+        vertices = []
+        indices = range(N)
+        for i in range(N):
+            t = i * dt
+            pos = self.getPosition(t)[0]
+            vertices += [pos[0], pos[1], pos[2], 1, 0, 0] # posición rojo
+        shape = bs.Shape(vertices, indices)
+        gpu = createGPUShape(pipeline, shape)
+        return gpu
 
     
 # TODO: Agregar la igualdad en C2, es decir la aceleración final del camino anterior debe ser igual a la aceleración inicial del siguiente

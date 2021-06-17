@@ -80,7 +80,7 @@ class Controller:
         self.camera = ThirdCamera(0, 0, 2.5)
         self.camara = 3
 
-        self.light = 2
+        self.light = 1
 
         self.suelo = None
         self.techo = None
