@@ -208,7 +208,7 @@ class Controller:
         #n = np.ceil(N/2)
         #m = np.ceil(M/2)
 
-        direction = np.array([self.camera.at[0] - self.camera.eye[0], self.camera.at[1] - self.camera.eye[1], 0])
+        direction = self.camera.at - self.camera.eye
         dx, dy = direction[0]/3, direction[1]/3
         theta = -self.mousePos[0] * 2 * np.pi - np.pi/2
 

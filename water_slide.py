@@ -59,19 +59,48 @@ if __name__ == "__main__":
     glEnable(GL_DEPTH_TEST)
 
     # Creando curva
-    pos = np.zeros((7,3))
-    pos[0]= np.array([-0.204, 0.404, 0])
-    pos[1]= np.array([-0.5, 0.102, 0])
-    pos[2]= np.array([-0.303, -0.053, 0])
-    pos[3]= np.array([-0.0, 0.009, 0])
-    pos[4]= np.array([0.225, -0.095, 0])
-    pos[5]= np.array([0.49, -0.155, 0])
-    pos[6]= np.array([0.497, -0.01, 0])
+    pos = np.zeros((10,3))
+    pos[0]= np.array([0, 0, 0])
+    pos[1]= np.array([4, 0, 0])
+    pos[2]= np.array([8, 0, 0])
+    pos[3]= np.array([12, 0, -1])
+    pos[4]= np.array([16, 0, -3])
+    pos[5]= np.array([20, 0, -5])
+    pos[6]= np.array([24, 4, -5])
+    pos[7]= np.array([28, 8, -5])
+    pos[8]= np.array([32, 12, -5])
+    pos[9]= np.array([36, 16, -5])
+
+    pos2 = np.zeros((10,3))
+    pos2[0]= np.array([0, 0, 0])
+    pos2[1]= np.array([4, 4, 0])
+    pos2[2]= np.array([8, 8, 0])
+    pos2[3]= np.array([12, 12, -1])
+    pos2[4]= np.array([16, 16, -3])
+    pos2[5]= np.array([20, 20, -5])
+    pos2[6]= np.array([24, 24, -5])
+    pos2[7]= np.array([28, 28, -5])
+    pos2[8]= np.array([32, 32, -5])
+    pos2[9]= np.array([36, 36, -5])
+
+    pos3 = np.zeros((10,3))
+    pos3[0]= np.array([0, 0, 0])
+    pos3[1]= np.array([0, 4, 0])
+    pos3[2]= np.array([0, 8, 0])
+    pos3[3]= np.array([0, 12, -1])
+    pos3[4]= np.array([0, 16, -3])
+    pos3[5]= np.array([0, 20, -5])
+    pos3[6]= np.array([0, 24, -5])
+    pos3[7]= np.array([0, 28, -5])
+    pos3[8]= np.array([0, 32, -5])
+    pos3[9]= np.array([0, 36, -5])
+
 
 
     # Creating shapes on GPU memory
-    curva = CatmullRom(pos)
-    gpuGraph = curva.drawGraph(pipeline2D, 500)
+    curva = CatmullRom(pos2)
+    tobogan = createSlide(curva, 100)
+    gpuTobogan = createTobogan(mvpPipeline, tobogan)
 
 
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
@@ -113,14 +142,18 @@ if __name__ == "__main__":
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
 
-        glUseProgram(pipeline2D.shaderProgram)
-        glUniformMatrix4fv(glGetUniformLocation(pipeline2D.shaderProgram, "transform"), 1, GL_TRUE, tr.identity())
-        pipeline2D.drawCall(gpuGraph, GL_LINE_STRIP)
+        glUseProgram(mvpPipeline.shaderProgram)
+        # Enviar matrices de transformaciones
+        glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+
+        glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
+        mvpPipeline.drawCall(gpuTobogan)
         
         
         # Once the drawing is rendered, buffers are swap so an uncomplete drawing is never seen.
         glfw.swap_buffers(window)
 
-    gpuGraph.clear()
+    gpuTobogan.clear()
 
     glfw.terminate()

@@ -396,6 +396,8 @@ class CatmullRom:
         self.nodos = posiciones.shape[0]
         self.MCR = np.array([[0, -0.5, 1, -0.5], [1, 0, -2.5, 1.5], [0, 0.5, 2, -1.5], [0, 0, -0.5, 0.5]]) # Matriz que contiene la formulación de la curva
         self.tiempo = self.nodos-3
+        self.vertices = None
+        self.puntos = None
 
     def getPosition(self, tiempo):
         """ Calcula la posición de la curva grande, estimando entre que nodos  está y calcular la curva de HERMITE que describe entre los nodos que se encuentra la posición en el tiempo"""
@@ -421,6 +423,23 @@ class CatmullRom:
         shape = bs.Shape(vertices, indices)
         gpu = createGPUShape(pipeline, shape)
         return gpu
+    
+    def createCurve(self, N):
+        "Crea la curva en cuestión, creando un total de N puntos"
+        dt = self.tiempo/N
+        self.puntos = N
+        vertices = []
+        for i in range(N):
+            t = i * dt
+            pos = self.getPosition(t)[0]
+            vertices.append(pos)
+        self.vertices = vertices
+
+    def getvertice(self, i):
+        " Entrega el vertice correspondiente a la iteración"
+        if self.vertices is None:
+            return AssertionError
+        return self.vertices[i]
 
 
 class CurvaNoUniforme:
@@ -472,6 +491,95 @@ class CurvaNoUniforme:
         shape = bs.Shape(vertices, indices)
         gpu = createGPUShape(pipeline, shape)
         return gpu
-
-    
 # TODO: Agregar la igualdad en C2, es decir la aceleración final del camino anterior debe ser igual a la aceleración inicial del siguiente
+
+def createSlide(curva, N):
+    "Recibe la curva con las posiciones correspondientes y un número de discretización de puntos para la malla"
+    isinstance(curva, CatmullRom)
+    Tobogan = om.TriMesh()
+    curva.createCurve(N)
+    radio = 3 # radio del tobogán
+    puntosCilindro = 40 # número de puntos en un cilindro
+    dtheta = 2 * np.pi/(puntosCilindro-1)
+    dalpha = np.pi/(puntosCilindro-1)
+    def orientacion(pos, nextPos, up): # Repetimos el procedimiento de la transformación vista para obtener la orientación dentro del tobogán, se desconsidera tubos en total "picada"
+        dir = (nextPos- pos)
+        dir /= np.linalg.norm(dir)
+        y = dir[1]
+        x = dir[0]
+        theta = np.arctan2(y,x)
+        
+        return theta
+    up = np.array([0, 0, 1])
+    cilindro = []
+    for j in range(puntosCilindro):
+            theta = j * dtheta
+            sin = np.sin(theta)
+            cos = np.cos(theta)
+            cilindro.append(np.array([0, radio * cos, radio * sin, 1]))
+
+    for i in range(N-1):
+        pos0 = curva.getvertice(i)
+        pos1 = curva.getvertice(i+1)
+        theta = orientacion(pos0, pos1, up)
+        matriz = tr.rotationZ(theta)
+        for j in range(puntosCilindro):
+            P = np.ones(4)
+            P[0:3] = np.matmul(matriz,cilindro[j])[0:3] + pos0
+            vertice = np.array([P[0], P[1], P[2]])
+            Tobogan.add_vertex(vertice)
+    
+     # Se calcula el índice de cada punto (i, j) de la forma:
+    index = lambda i, j: i*puntosCilindro + j
+    # Obtenemos los vertices de cada malla, y agregamos las caras
+    vertex = list(Tobogan.vertices())
+
+    # Creamos las caras para esta malla (Y usar esta orientación para los factoriales)
+    for i in range(N-2):
+        for j in range(puntosCilindro-1):
+            # los índices:
+            isw = index(i,j)
+            ise = index(i+1,j)
+            ine = index(i+1,j+1)
+            inw = index(i,j+1)
+            # Identificar vértices
+            Vsw = vertex[isw]
+            Vse = vertex[ise]
+            Vne = vertex[ine]
+            Vnw = vertex[inw]
+            # Se agregan las caras
+            Tobogan.add_face(Vsw, Vse, Vne)
+            Tobogan.add_face(Vne, Vnw, Vsw)
+    return Tobogan
+
+def get_vertexs_and_indexesTobogan(mesh):
+    # Obtenemos las caras de la malla
+    faces = mesh.faces()
+
+    # Creamos una lista para los vertices e indices
+    vertexs = []
+    indexes = []
+
+    # Obtenemos los vertices y los recorremos
+    for vertex in mesh.vertices():
+        point = mesh.point(vertex).tolist()
+        vertexs += point
+        vertexs += [0, 1, 0]
+
+    for face in faces:
+        # Obtenemos los vertices de la cara
+        face_indexes = mesh.fv(face)
+        for vertex in face_indexes:
+            # Obtenemos el numero de indice y lo agregamos a la lista
+            indexes += [vertex.idx()]
+
+    return vertexs, indexes
+
+def createTobogan(pipeline, mesh):
+    # obtenemos los vértices e índices del suelo y del techo
+    Vertices, Indices = get_vertexs_and_indexesTobogan(mesh)
+    Shape = bs.Shape(Vertices, Indices)
+
+    gpuShape = createGPUShape(pipeline, Shape)
+
+    return gpuShape
