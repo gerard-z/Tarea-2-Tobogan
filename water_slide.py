@@ -73,15 +73,15 @@ if __name__ == "__main__":
 
     pos2 = np.zeros((10,3))
     pos2[0]= np.array([0, 0, 0])
-    pos2[1]= np.array([4, 4, 0])
-    pos2[2]= np.array([8, 8, 0])
-    pos2[3]= np.array([12, 12, -1])
-    pos2[4]= np.array([16, 16, -3])
-    pos2[5]= np.array([20, 20, -5])
-    pos2[6]= np.array([24, 24, -5])
-    pos2[7]= np.array([28, 28, -5])
-    pos2[8]= np.array([32, 32, -5])
-    pos2[9]= np.array([36, 36, -5])
+    pos2[1]= np.array([4, 4, -5])
+    pos2[2]= np.array([8, 8, -10])
+    pos2[3]= np.array([12, 12, -15])
+    pos2[4]= np.array([16, 16, -20])
+    pos2[5]= np.array([20, 20, -30])
+    pos2[6]= np.array([24, 24, -40])
+    pos2[7]= np.array([28, 28, -60])
+    pos2[8]= np.array([32, 32, -80])
+    pos2[9]= np.array([36, 36, -140])
 
     pos3 = np.zeros((10,3))
     pos3[0]= np.array([0, 0, 0])
@@ -95,12 +95,40 @@ if __name__ == "__main__":
     pos3[8]= np.array([0, 32, -5])
     pos3[9]= np.array([0, 36, -5])
 
+    pos1 = np.zeros((25,3))
+    pos1[0] = np.array([-20, 10, 0])
+    pos1[1] = np.array([-10, 5, 0])
+    pos1[2] = np.array([0,0,0])
+    pos1[3] = np.array([10,-5,0])
+    pos1[4] = np.array([20,0,-5])
+    pos1[5] = np.array([25,10,-10])
+    pos1[6] = np.array([20, 20, -15])
+    pos1[7] = np.array([10, 25, -20])
+    pos1[8] = np.array([0, 20, -25])
+    pos1[9] = np.array([-5, 10, -25])
+    pos1[10] = np.array([-5, 0, -30])
+    pos1[11] = np.array([-10, -10, -35])
+    pos1[12] = np.array([-20, -15, -35])
+    pos1[13] = np.array([-30, -10, -40])
+    pos1[14] = np.array([-35, 0, -45])
+    pos1[15] = np.array([-30, 10, -50])
+    pos1[16] = np.array([-20, 15, -55])
+    pos1[17] = np.array([-10, 15, -60])
+    pos1[18] = np.array([0, 10, -60])
+    pos1[19] = np.array([5, 0, -60])
+    pos1[20] = np.array([5, -10, -60])
+    pos1[21] = np.array([5, -20, -60])
+    pos1[22] = np.array([0, -30, -60])
+    pos1[23] = np.array([-10, -35, -60])
+    pos1[24] = np.array([-20, -35, -60])
+
+
 
 
     # Creating shapes on GPU memory
-    curva = CatmullRom(pos2)
+    curva = CatmullRom(pos1, 0.5)
     tobogan = createSlide(curva, 100)
-    gpuTobogan = createTobogan(mvpPipeline, tobogan)
+    gpuTobogan = createTobogan(phongPipeline, tobogan)
 
 
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
@@ -125,10 +153,38 @@ if __name__ == "__main__":
         # Using GLFW to check for input events
         glfw.poll_events()
 
+        # ALgunos parámetros de movimiento
+        if (glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS):
+            delta *= 4
+
+
         # Definimos la cámara de la aplicación
-        controller.update_camera(delta)
+        controller.update_camera(delta, curva)
         camera = controller.get_camera()
+        # Actualizamos eye y at de la cámara en el tobogán
+        if controller.camara == 2:
+            slideEye, slideAt = curva.camera(delta, controller)
+            camera.eye = slideEye
+            camera.at = slideAt
+
         viewMatrix = camera.update_view()
+
+        # iluminación
+        lightPos = controller.getEyeCamera()
+        lightDirection = controller.getAtCamera() - controller.getEyeCamera()
+
+        # definiendo parámetros del foco
+        if controller.light==1:
+            light.setLight(0.6, 30, 1, [0.01, 0.03, 0.04])
+
+        elif controller.light==2:
+            light.setLight(0.8, 15, 1, [0.01, 0.02, 0.03])
+
+        elif controller.light==4:
+            light.setLight(0, 1, 0, [0.01, 0.03, 0.05])
+
+        else:
+            light.setLight(1, 6, 1, [0.01, 0.01, 0.01])
 
         # Setting up the projection transform
         projection = tr.perspective(60, float(width) / float(height), 0.1, 100)
@@ -142,13 +198,21 @@ if __name__ == "__main__":
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
 
-        glUseProgram(mvpPipeline.shaderProgram)
+        light.updateLight(phongPipeline, lightPos, lightDirection, lightPos)
         # Enviar matrices de transformaciones
-        glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
-        glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+        glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
 
-        glUniformMatrix4fv(glGetUniformLocation(mvpPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
-        mvpPipeline.drawCall(gpuTobogan)
+        # Iluminación del material
+        glUniform3f(glGetUniformLocation(phongPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
+        glUniform3f(glGetUniformLocation(phongPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
+        glUniform3f(glGetUniformLocation(phongPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
+
+        # Transformación del modelo
+        glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
+
+        # Drawing
+        phongPipeline.drawCall(gpuTobogan)
         
         
         # Once the drawing is rendered, buffers are swap so an uncomplete drawing is never seen.

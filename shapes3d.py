@@ -356,7 +356,7 @@ def get_vertexs_and_indexes(mesh, orientation):
         # Agregamos las coordenadas de a textura y su índice
         vertexs += mesh.texcoord2D(vertex).tolist()
         # Agregamos la norma
-        normal = calculateNormal(mesh, vertex)
+        normal = calculateNormal(mesh)
         normal = orientation * normal
 
         vertexs += [normal[0], normal[1], normal[2]]
@@ -390,7 +390,7 @@ def createCave(pipeline, Matriz):
 ########## Curva Nonuniform splines ##############################
 class CatmullRom:
     """ Crear una curva catmull rom"""
-    def __init__(self, posiciones):
+    def __init__(self, posiciones, velocidad=1):
         """ Crea una curva catmull rom, en base a curvas de Hermite que van desde 0 a 1 cada una, descartando el primer y último nodo posición, manteniendo una continuidad C1"""
         self.posiciones = posiciones
         self.nodos = posiciones.shape[0]
@@ -398,6 +398,9 @@ class CatmullRom:
         self.tiempo = self.nodos-3
         self.vertices = None
         self.puntos = None
+        self.Actual = 1
+        self.velocidad = velocidad
+        self.avanzar = False
 
     def getPosition(self, tiempo):
         """ Calcula la posición de la curva grande, estimando entre que nodos  está y calcular la curva de HERMITE que describe entre los nodos que se encuentra la posición en el tiempo"""
@@ -409,7 +412,7 @@ class CatmullRom:
         G = np.concatenate((np.array([pos[i-1]]).T, np.array([pos[i]]).T, np.array([pos[i+1]]).T, np.array([pos[i+2]]).T), axis=1)
         matriz = np.matmul(G, self.MCR)
         T = generateT(t)
-        return np.matmul(matriz, T).T
+        return np.matmul(matriz, T).T[0]
 
     def drawGraph(self, pipeline, N):
         "Dibuja un gráfico en 2D, utilizando el pipeline entregado en formato Lines."
@@ -418,7 +421,7 @@ class CatmullRom:
         indices = range(N)
         for i in range(N):
             t = i * dt
-            pos = self.getPosition(t)[0]
+            pos = self.getPosition(t)
             vertices += [pos[0], pos[1], pos[2], 1, 0, 0] # posición rojo
         shape = bs.Shape(vertices, indices)
         gpu = createGPUShape(pipeline, shape)
@@ -431,7 +434,7 @@ class CatmullRom:
         vertices = []
         for i in range(N):
             t = i * dt
-            pos = self.getPosition(t)[0]
+            pos = self.getPosition(t)
             vertices.append(pos)
         self.vertices = vertices
 
@@ -440,79 +443,49 @@ class CatmullRom:
         if self.vertices is None:
             return AssertionError
         return self.vertices[i]
-
-
-class CurvaNoUniforme:
-    """ Crear una curva no uniforme de clase C2, para empezar, se debe dividir el tiempo de cada intervalo entre puntos en proporción al largo del segmento.
-    De esta manera, el recorrido va tener una velocidad media. Para esto se utilizan intervalos de curvas de Hermite"""
-    def __init__(self, posiciones, velocidad, tangenteIN, tangenteFin):
-        """ Entregar el vector de posiciones donde deberá recorrer la curva y la velocidad promedio de recorrido """
-        self.posiciones = posiciones
-        self.tangentes = [tangenteIN]
-        self.Nodos = posiciones.shape[0] # Número de nodos que tiene la curva
-        for i in range(1,self.Nodos-1):
-            tangente = self.posiciones[i+1]-self.posiciones[i-1]
-            tangente /= 2
-            self.tangentes.append(tangente)
-        self.tangentes.append(tangenteFin)
-        self.distancias = []
-        self.distanciaMax = 0
-        for i in range(self.Nodos-1):
-            pos0 = self.posiciones[i]
-            pos1 = self.posiciones[i+1]
-            distancia = np.linalg.norm(pos1-pos0)
-            self.distancias.append(distancia)
-            self.distanciaMax += distancia
-        self.tiempo = self.distanciaMax/velocidad # Tiempo de la curva
-        self.posActual = posiciones[0] # Donde comienza
-
-    def getPosition(self, tiempo):
-        """ Calcula la posición de la curva grande, estimando entre que nodos  está y calcular la curva de HERMITE que describe entre los nodos que se encuentra la posición en el tiempo"""
-        assert tiempo<self.tiempo, "El tiempo a evaluar debe estar dentro del rango parametrizado del tiempo"
-        distancia = tiempo * self.distanciaMax  # Tiempo entre 0 y 1
-        distanciaActual = 0
-        i=0
-        while distanciaActual + self.distancias[i] < distancia and i<self.Nodos-1:
-            distanciaActual += self.distancias[i]
-            i += 1
-        t = distancia - distanciaActual
-        t /= self.distancias[i]     # Tiempo entre 0 y 1
-        return Curveposition("Hermite", np.array([self.posiciones[i]]).T, np.array([self.posiciones[i+1]]).T, np.array([self.tangentes[i]]).T, np.array([self.tangentes[i+1]]).T, t)
     
-    def drawGraph(self, pipeline, N):
-        "Dibuja un gráfico en 2D, utilizando el pipeline entregado en formato Lines."
-        dt = self.tiempo/N
-        vertices = []
-        indices = range(N)
-        for i in range(N):
-            t = i * dt
-            pos = self.getPosition(t)[0]
-            vertices += [pos[0], pos[1], pos[2], 1, 0, 0] # posición rojo
-        shape = bs.Shape(vertices, indices)
-        gpu = createGPUShape(pipeline, shape)
-        return gpu
-# TODO: Agregar la igualdad en C2, es decir la aceleración final del camino anterior debe ser igual a la aceleración inicial del siguiente
+    def camera(self, delta, controller):
+        """Entrega las posiciones de la camara  y hacia donde debe mirar en todo momento, una vez ya creada la curva con "createCurve" """
+        if controller.reset:
+            self.Actual = 1
+            controller.reset = False
+            self.avanzar = True
+        avance = delta * self.velocidad
+        TiempoMax = self.tiempo-3
+        tiempo = self.Actual + 1
+        if tiempo+2*avance>= TiempoMax:
+            self.avanzar = False
+
+        eye = self.getPosition(self.Actual)
+        at = self.getPosition(tiempo)
+        at[2] -= 2
+        if self.avanzar:
+            self.Actual += avance
+        return eye, at
+
+
 
 def createSlide(curva, N):
     "Recibe la curva con las posiciones correspondientes y un número de discretización de puntos para la malla"
     isinstance(curva, CatmullRom)
     Tobogan = om.TriMesh()
+    Tobogan.request_vertex_texcoords2D()
     curva.createCurve(N)
-    radio = 3 # radio del tobogán
+    radio = 4 # radio del tobogán
     puntosCilindro = 40 # número de puntos en un cilindro
     dtheta = 2 * np.pi/(puntosCilindro-1)
-    dalpha = np.pi/(puntosCilindro-1)
-    def orientacion(pos, nextPos, up): # Repetimos el procedimiento de la transformación vista para obtener la orientación dentro del tobogán, se desconsidera tubos en total "picada"
+
+    def orientacion(pos, nextPos): # Repetimos el procedimiento de la transformación vista para obtener la orientación dentro del tobogán, se desconsidera tubos en total "picada"
         dir = (nextPos- pos)
-        dir /= np.linalg.norm(dir)
         y = dir[1]
         x = dir[0]
         theta = np.arctan2(y,x)
-        
-        return theta
-    up = np.array([0, 0, 1])
+        z = dir[2]
+        alpha = np.arctan2(z, np.sqrt(x*x+y*y))
+        return theta , alpha
+    
     cilindro = []
-    for j in range(puntosCilindro):
+    for j in range(puntosCilindro-1):
             theta = j * dtheta
             sin = np.sin(theta)
             cos = np.cos(theta)
@@ -521,16 +494,19 @@ def createSlide(curva, N):
     for i in range(N-1):
         pos0 = curva.getvertice(i)
         pos1 = curva.getvertice(i+1)
-        theta = orientacion(pos0, pos1, up)
-        matriz = tr.rotationZ(theta)
-        for j in range(puntosCilindro):
+        theta, alpha = orientacion(pos0, pos1)
+        matriZY = tr.rotationY(-alpha)
+        #matriZY = np.identity(4)
+        matriZZ = tr.rotationZ(theta)
+        matriz = np.matmul(matriZZ, matriZY)
+        for j in range(puntosCilindro-1):
             P = np.ones(4)
-            P[0:3] = np.matmul(matriz,cilindro[j])[0:3] + pos0
+            P[0:3] = np.matmul(matriz, cilindro[j])[0:3] + pos0
             vertice = np.array([P[0], P[1], P[2]])
             Tobogan.add_vertex(vertice)
     
      # Se calcula el índice de cada punto (i, j) de la forma:
-    index = lambda i, j: i*puntosCilindro + j
+    index = lambda i, j: i*(puntosCilindro-1) + j
     # Obtenemos los vertices de cada malla, y agregamos las caras
     vertex = list(Tobogan.vertices())
 
@@ -540,8 +516,12 @@ def createSlide(curva, N):
             # los índices:
             isw = index(i,j)
             ise = index(i+1,j)
-            ine = index(i+1,j+1)
-            inw = index(i,j+1)
+            if j+1==puntosCilindro-1:
+                ine = index(i+1, 0)
+                inw = index(i, 0)
+            else:
+                ine = index(i+1,j+1)
+                inw = index(i,j+1)
             # Identificar vértices
             Vsw = vertex[isw]
             Vse = vertex[ise]
@@ -556,6 +536,8 @@ def get_vertexs_and_indexesTobogan(mesh):
     # Obtenemos las caras de la malla
     faces = mesh.faces()
 
+    calculateNormal(mesh) # Se calculan las normales de las caras
+
     # Creamos una lista para los vertices e indices
     vertexs = []
     indexes = []
@@ -565,6 +547,25 @@ def get_vertexs_and_indexesTobogan(mesh):
         point = mesh.point(vertex).tolist()
         vertexs += point
         vertexs += [0, 1, 0]
+        
+        normal = np.array([0, 0, 0])            # vector que promediará las normales de las caras adyacentes
+        outHalfEdge = mesh.halfedge_handle(vertex)  #Se obtiene el half edge de salida
+        OutHalfEdge = outHalfEdge
+        k = True # Se crea una variable que sirve para indicar si seguimos dentro de las caras vecinas
+        while k:
+            face = mesh.face_handle(outHalfEdge)        # Obtiene la cara ligada al half edge
+            nextHalfEdge = mesh.next_halfedge_handle(outHalfEdge)   # Obtiene el siguiente half edge 
+            if mesh.face_handle(nextHalfEdge) != face:    # Revisa que el siguiente half edge está ligado a la misma cara
+                k = False   # No lo está
+            else:
+                inHalfEdge = mesh.next_halfedge_handle(nextHalfEdge)    # Obtiene el siguiente half edge que apuntará al vértice nuevamente
+                outHalfEdge = mesh.opposite_halfedge_handle(inHalfEdge) # Se pasa al half edge opuesto que va en salida
+                if outHalfEdge == OutHalfEdge: k = False    # Volvemos al half edge del inicio
+                Normal = np.array(mesh.normal(face)) # Se obtiene la normal calculada en la cara
+                normal = normal + Normal    # Se suman las normales
+        normal = normal/np.linalg.norm(normal)    # Se obtiene el promedio de las normales
+        
+        vertexs += [normal[0], normal[1], normal[2]]
 
     for face in faces:
         # Obtenemos los vertices de la cara
