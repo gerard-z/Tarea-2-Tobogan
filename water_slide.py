@@ -13,6 +13,10 @@ import grafica.newLightShaders as nl
 from shapes3d import *
 from resources import *
 
+
+velocidad = 1
+N = 10
+
 if __name__ == "__main__":
 
     # Initialize glfw
@@ -43,7 +47,7 @@ if __name__ == "__main__":
 
     # Diferentes shader 3D que consideran la iluminación de la linterna
     phongPipeline = nl.SimplePhongSpotlightShaderProgram()
-    phongTexPipeline = nl.SimplePhongTextureSpotlightShaderProgram()
+    phongTexPipeline = nl.DoublePhongTextureSpotlightShaderProgram()
 
     # Este shader 3D no considera la iluminación de la linterna
     mvpPipeline = es.SimpleModelViewProjectionShaderProgram()
@@ -126,9 +130,10 @@ if __name__ == "__main__":
 
 
     # Creating shapes on GPU memory
-    curva = CatmullRom(pos1, 0.5)
-    tobogan = createSlide(curva, 100)
+    curva = CatmullRom(pos1, velocidad)
+    tobogan, toboganTex = createSlide(curva, 100)
     gpuTobogan = createTobogan(phongPipeline, tobogan)
+    gpuToboganTex = createTexTobogan(phongTexPipeline, toboganTex)
 
 
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
@@ -138,6 +143,15 @@ if __name__ == "__main__":
     # Variables últies
     t0 = glfw.get_time()
     light = Iluminacion()
+    T = t0
+    Lpos = curva.puntos//4
+    Lpos1 = curva.getvertice(Lpos)
+    Lpos2 = curva.getvertice(Lpos*2)
+    Lpos3 = curva.getvertice(Lpos*3)
+    Lpos1[2] += curva.radio*0.9
+    Lpos2[2] += curva.radio*0.9
+    Lpos3[2] += curva.radio*0.9
+    Lpos4 = curva.getvertice(curva.puntos-16)
 
     # Application loop
     while not glfw.window_should_close(window):
@@ -150,13 +164,20 @@ if __name__ == "__main__":
         delta = t1 -t0
         t0 = t1
 
+        T += 3*delta * velocidad
+
+        c1 = np.abs(((0.5*t1+0.00) % 2)-1)
+        c2 = np.abs(((0.5*t1+0.66) % 2)-1)
+        c3 = np.abs(((0.5*t1+1.32) % 2)-1)
+
         # Using GLFW to check for input events
         glfw.poll_events()
 
         # ALgunos parámetros de movimiento
         if (glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS):
             delta *= 4
-
+        if (glfw.get_key(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS):
+            delta /= 4
 
         # Definimos la cámara de la aplicación
         controller.update_camera(delta, curva)
@@ -197,8 +218,38 @@ if __name__ == "__main__":
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+        
+        # Shader de texturas
+        light.updateLight(phongTexPipeline, lightPos, lightDirection, lightPos)
+        light.addLight(0, Lpos1, 1, 1, 1)
+        light.addLight(1, Lpos2, 1, 1, 1)
+        light.addLight(2, Lpos3, 1, 1, 1)
+        light.addLight(3, Lpos4, c1, c2, c3)
+        # Enviando información de las texturas
+        glUniform1i(glGetUniformLocation(phongTexPipeline.shaderProgram, "TexWater"), 0)
+        glUniform1i(glGetUniformLocation(phongTexPipeline.shaderProgram, "TexDisplacement"), 1)
+        glUniform1f(glGetUniformLocation(phongTexPipeline.shaderProgram, "time"), T)
+        # Enviar matrices de transformaciones
+        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
 
+        # Iluminación del material
+        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
+        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
+        glUniform3f(glGetUniformLocation(phongTexPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
+
+        # Transformación del modelo
+        glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
+
+        # Drawing
+        phongTexPipeline.drawCall(gpuToboganTex)
+
+        # Shader de iluminación
         light.updateLight(phongPipeline, lightPos, lightDirection, lightPos)
+        light.addLight(0, Lpos1, 1, 1, 1)
+        light.addLight(1, Lpos2, 1, 1, 1)
+        light.addLight(2, Lpos3, 1, 1, 1)
+        light.addLight(3, Lpos4, c1, c2, c3)
         # Enviar matrices de transformaciones
         glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
         glUniformMatrix4fv(glGetUniformLocation(phongPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
@@ -219,5 +270,6 @@ if __name__ == "__main__":
         glfw.swap_buffers(window)
 
     gpuTobogan.clear()
+    gpuToboganTex.clear()
 
     glfw.terminate()

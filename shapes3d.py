@@ -1,5 +1,6 @@
 """Funciones para crear distintas figuras y escenas en 3D """
 
+from grafica.gpu_shape import GPUShape
 import openmesh as om
 import numpy as np
 import numpy.random as rd
@@ -246,14 +247,14 @@ def caveMesh(matriz):
             techo.add_face(Vsw, Vse, Vne)
             techo.add_face(Vne, Vnw, Vsw)
 
-
+    # No alcancé a arreglar esto a tiempo para la entrega de esta tarea
     # Se aplican fractales a la malla
     fractal = 0
     sueloMesh = fractalMesh(suelo, fractal)
     techoMesh = fractalMesh(techo, fractal)
     lenXS += (lenXS-1)*(2**fractal -1)
     lenYS += (lenYS-1)*(2**fractal -1)
-
+    
     index = lambda i, j: i*lenYS + j
 
     # Obtenemos los vertices de cada malla, y agregamos las caras
@@ -401,6 +402,7 @@ class CatmullRom:
         self.Actual = 1
         self.velocidad = velocidad
         self.avanzar = False
+        self.radio = 4 # Radio que tendrá el tobogán, se incluye acá para que pueda ser utilizado en la cámara también.
 
     def getPosition(self, tiempo):
         """ Calcula la posición de la curva grande, estimando entre que nodos  está y calcular la curva de HERMITE que describe entre los nodos que se encuentra la posición en el tiempo"""
@@ -415,7 +417,7 @@ class CatmullRom:
         return np.matmul(matriz, T).T[0]
 
     def drawGraph(self, pipeline, N):
-        "Dibuja un gráfico en 2D, utilizando el pipeline entregado en formato Lines."
+        "Dibuja un gráfico en 2D, utilizando el pipeline entregado en formato Lines. Se utilizó para ver si funcionaba la estructura"
         dt = self.tiempo/N
         vertices = []
         indices = range(N)
@@ -458,7 +460,7 @@ class CatmullRom:
 
         eye = self.getPosition(self.Actual)
         at = self.getPosition(tiempo)
-        at[2] -= 2
+        at[2] -= self.radio
         if self.avanzar:
             self.Actual += avance
         return eye, at
@@ -469,9 +471,10 @@ def createSlide(curva, N):
     "Recibe la curva con las posiciones correspondientes y un número de discretización de puntos para la malla"
     isinstance(curva, CatmullRom)
     Tobogan = om.TriMesh()
-    Tobogan.request_vertex_texcoords2D()
+    ToboganTex = om.TriMesh()
+    ToboganTex.request_vertex_texcoords2D()
     curva.createCurve(N)
-    radio = 4 # radio del tobogán
+    radio = curva.radio # radio del tobogán
     puntosCilindro = 40 # número de puntos en un cilindro
     dtheta = 2 * np.pi/(puntosCilindro-1)
 
@@ -530,9 +533,36 @@ def createSlide(curva, N):
             # Se agregan las caras
             Tobogan.add_face(Vsw, Vse, Vne)
             Tobogan.add_face(Vne, Vnw, Vsw)
-    return Tobogan
 
-def get_vertexs_and_indexesTobogan(mesh):
+    # Agregamos vértices y caras a la malla poligonal de la parte inferior, que contendrá la textura del agua en movimiento
+    for i in range(N-2):
+        for j in range(puntosCilindro//2+1, puntosCilindro-2):
+            # los índices:
+            isw = index(i,j)
+            ise = index(i+1,j) 
+            ine = index(i+1,j+1)
+            inw = index(i,j+1)
+            # Identificar vértices
+            Vsw = vertex[isw]
+            Vse = vertex[ise]
+            Vne = vertex[ine]
+            Vnw = vertex[inw]
+            # Se agregan a la nueva malla repitiendo vértices para las distintas coordenadas de texturas
+            vsw = ToboganTex.add_vertex(Tobogan.point(Vsw))
+            vse = ToboganTex.add_vertex(Tobogan.point(Vse))
+            vne = ToboganTex.add_vertex(Tobogan.point(Vne))
+            vnw = ToboganTex.add_vertex(Tobogan.point(Vnw))
+            # Se agregan las coordenadas de texturas
+            ToboganTex.set_texcoord2D(vsw, [0, 1])
+            ToboganTex.set_texcoord2D(vse, [1, 1])
+            ToboganTex.set_texcoord2D(vne, [1, 0])
+            ToboganTex.set_texcoord2D(vnw, [0, 0])
+            # Se agregan las caras
+            ToboganTex.add_face(vsw, vse, vne)
+            ToboganTex.add_face(vne, vnw, vsw)
+    return Tobogan, ToboganTex
+
+def get_vertexs_and_indexesTobogan(mesh, boolTex = False):
     # Obtenemos las caras de la malla
     faces = mesh.faces()
 
@@ -546,7 +576,11 @@ def get_vertexs_and_indexesTobogan(mesh):
     for vertex in mesh.vertices():
         point = mesh.point(vertex).tolist()
         vertexs += point
-        vertexs += [0, 1, 0]
+        if boolTex:
+            texcoord = mesh.texcoord2D(vertex).tolist()
+            vertexs +=  texcoord
+        else:
+            vertexs += [0, 1, 0]
         
         normal = np.array([0, 0, 0])            # vector que promediará las normales de las caras adyacentes
         outHalfEdge = mesh.halfedge_handle(vertex)  #Se obtiene el half edge de salida
@@ -577,10 +611,19 @@ def get_vertexs_and_indexesTobogan(mesh):
     return vertexs, indexes
 
 def createTobogan(pipeline, mesh):
-    # obtenemos los vértices e índices del suelo y del techo
+    # obtenemos los vértices e índices del tobogán
     Vertices, Indices = get_vertexs_and_indexesTobogan(mesh)
     Shape = bs.Shape(Vertices, Indices)
 
     gpuShape = createGPUShape(pipeline, Shape)
+
+    return gpuShape
+
+def createTexTobogan(pipeline, mesh):
+    # Se obitenen los vertices e índices del tobogán con texturas
+    Vertices, Indices = get_vertexs_and_indexesTobogan(mesh, True)
+    Shape = bs.Shape(Vertices, Indices)
+
+    gpuShape = createMultipleTextureGPUShape(Shape, pipeline, [waterPath, displacementPath], minFilterMode=GL_LINEAR, maxFilterMode=GL_LINEAR)
 
     return gpuShape

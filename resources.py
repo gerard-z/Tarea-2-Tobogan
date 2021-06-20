@@ -90,7 +90,7 @@ class Controller:
         self.height = height
 
         self.is_a_pressed = True
-        self.is_t_pressed = False
+        self.is_t_pressed = True
 
         self.camera = FirstCamera(0, 0, 2.5)
         self.camara = 1
@@ -280,6 +280,7 @@ class Iluminacion:
         self.constantAttenuation = 0.01
         self.linearAttenuation = 0.03
         self.quadraticAttenuation = 0.05
+        self.pipeline = None
 
     # fija los nuevos datos para la luz
     def setLight(self, Power, Concentration, Shininess, Attenuation):
@@ -301,6 +302,7 @@ class Iluminacion:
         quadraticAttenuation = self.quadraticAttenuation
         # Se activa el program
         glUseProgram(Pipeline.shaderProgram)
+        self.pipeline = Pipeline # Se guarda el shader utilizado
         # Se envían los uniforms
         glUniform3fv(glGetUniformLocation(Pipeline.shaderProgram, "lightPos"), 1, Pos)
         glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, "La"), 0.3, 0.3, 0.3)
@@ -315,6 +317,20 @@ class Iluminacion:
         glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "constantAttenuation"), constantAttenuation)
         glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "linearAttenuation"), linearAttenuation)
         glUniform1f(glGetUniformLocation(Pipeline.shaderProgram, "quadraticAttenuation"), quadraticAttenuation)
+
+    def addLight(self, i, pos, r, g, b):
+        " Agregar las luces al shader, donde i indica que luz corresponde (del 0 al 3), pos es la posición de esta luz y r g b sus colores"
+        strPos = "lightPos" + str(i)
+        strLa = "La" + str(i)
+        strLd = "Ld" + str(i)
+        strLs = "Ls" + str(i)
+        Pipeline = self.pipeline
+        # Se envían los uniforms
+        glUniform3fv(glGetUniformLocation(Pipeline.shaderProgram, strPos), 1, pos)
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, strLa), 0.1, 0.1, 0.1)
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, strLd), r*0.7, g*0.7, b*0.7)
+        glUniform3f(glGetUniformLocation(Pipeline.shaderProgram, strLs), r, g, b)
+        
 
 # Clase para guardar datos
 class mallaTam:

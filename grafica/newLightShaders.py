@@ -3,7 +3,7 @@
 una linterna. """
 from OpenGL.GL import *
 import OpenGL.GL.shaders
-from grafica.gpu_shape import GPUShape
+from grafica.gpu_shape import GPUShape, GPUShapeMulti
 
 
 class SimplePhongDirectionalShaderProgram:
@@ -562,6 +562,7 @@ class SimplePhongSpotlightShaderProgram:
             in vec3 fragPosition;
             in vec3 fragOriginalColor;
             
+            // Iluminación de la linterna
             uniform vec3 lightPos;
             uniform vec3 lightDirection; 
             uniform vec3 viewPosition;
@@ -577,39 +578,116 @@ class SimplePhongSpotlightShaderProgram:
             uniform float linearAttenuation;
             uniform float quadraticAttenuation;
 
-            void main()
-            {
-                // ambient
-                vec3 ambient = Ka * La;
-                
-                // diffuse
+            // Iluminación de focos
+            uniform vec3 lightPos0; 
+            uniform vec3 lightPos1;  
+            uniform vec3 lightPos2;
+            uniform vec3 lightPos3;
+            uniform vec3 La0;
+            uniform vec3 La1;
+            uniform vec3 La2;
+            uniform vec3 La3;
+            uniform vec3 Ld0;
+            uniform vec3 Ld1;
+            uniform vec3 Ld2;
+            uniform vec3 Ld3;
+            uniform vec3 Ls0;
+            uniform vec3 Ls1;
+            uniform vec3 Ls2;
+            uniform vec3 Ls3;
+
+            void main() //Linea 43
+            {   
+                // Creación de parámetros para múltiples luces
                 // fragment normal has been interpolated, so it does not necessarily have norm equal to 1
-                vec3 tolight = lightPos-fragPosition;
                 vec3 normalizedNormal = normalize(fragNormal);
+                vec3 result = vec3(0.0f, 0.0f, 0.0f);
+
+                // Luces
+                vec3 lights[3] = vec3[](lightPos0, lightPos1, lightPos2);
+                vec3 Las[3] = vec3[](La0, La1, La2);
+                vec3 Lds[3] = vec3[](Ld0, Ld1, Ld2);
+                vec3 Lss[3] = vec3[](Ls0, Ls1, Ls2);
+
+                for (int i = 0; i<3; i++)   //Linea 56
+                {
+                    // ambient       Line 58
+                    vec3 ambient = Ka * Las[i];
+
+                    // diffuse       Line 61
+                    vec3 tolight = lights[i]-fragPosition;
+                    vec3 lightDir = normalize(tolight);
+                    float diff = max(dot(normalizedNormal, lightDir), 0.0);
+                    vec3 diffuse = Kd * Lds[i] * diff;
+                
+                    // specular     line 67
+                    vec3 viewDir = normalize(viewPosition - fragPosition);
+                    vec3 reflectDir = reflect(-lightDir, normalizedNormal);  
+                    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+                    vec3 specular = Ks * Lss[i] * spec;
+
+                    // attenuation  Line 73
+                    float distToLight = length(tolight);
+                    float attenuation = 0.01
+                        + 0.02 * distToLight
+                        + 0.03 * distToLight * distToLight;
+
+                    result += ambient + (((diffuse + specular) / attenuation));
+                }
+                // Luz del final    Line 81
+                // ambient
+                vec3 ambient = Ka * La3;
+
+                // diffuse 
+                vec3 tolight = lightPos3-fragPosition;
                 vec3 lightDir = normalize(tolight);
                 float diff = max(dot(normalizedNormal, lightDir), 0.0);
-                vec3 diffuse = Kd * Ld * diff;
-                
-                // specular
+                vec3 diffuse = Kd * Ld3 * diff;
+            
+                // specular 
                 vec3 viewDir = normalize(viewPosition - fragPosition);
                 vec3 reflectDir = reflect(-lightDir, normalizedNormal);  
                 float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-                vec3 specular = Ks * Ls * spec;
+                vec3 specular = Ks * Ls3 * spec;
 
                 // attenuation
                 float distToLight = length(tolight);
-                float attenuation = constantAttenuation
+                float attenuation = 0.01
+                    + 0.01 * distToLight
+                    + 0.01 * distToLight * distToLight;
+
+                result += ambient + (((diffuse + specular) / attenuation));
+
+                // Linterna
+                // ambient
+                ambient = Ka * La;
+
+                // diffuse 
+                tolight = lightPos-fragPosition;
+                lightDir = normalize(tolight);
+                diff = max(dot(normalizedNormal, lightDir), 0.0);
+                diffuse = Kd * Ld * diff;
+            
+                // specular 
+                viewDir = normalize(viewPosition - fragPosition);
+                reflectDir = reflect(-lightDir, normalizedNormal);  
+                spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+                specular = Ks * Ls * spec;
+
+                // attenuation
+                distToLight = length(tolight);
+                attenuation = constantAttenuation
                     + linearAttenuation * distToLight
                     + quadraticAttenuation * distToLight * distToLight;
 
-                // spotlight
+                // spotlight 
                 vec3 dir = normalize(-lightDirection);
                 float spotLight = pow(max(dot(dir, lightDir), 0.0), concentration);
 
-                vec3 result = ambient + (spotLight * ((diffuse + specular) / attenuation));
-                    
-                result = result * fragOriginalColor;
-                fragColor = vec4(result, 1.0);
+                result += ambient + (spotLight * ((diffuse + specular) / attenuation));
+
+                vec3 resultFin = result * fragOriginalColor;
+                fragColor = vec4(resultFin, 1.0);
             }
             """
 
@@ -653,7 +731,7 @@ class SimplePhongSpotlightShaderProgram:
         glBindVertexArray(0)
 
 
-class SimplePhongTextureSpotlightShaderProgram:
+class DoublePhongTextureSpotlightShaderProgram:
 
     def __init__(self):
         vertex_shader = """
@@ -690,6 +768,7 @@ class SimplePhongTextureSpotlightShaderProgram:
 
             out vec4 fragColor;
             
+            // Linterna
             uniform vec3 lightPos;
             uniform vec3 lightDirection; 
             uniform vec3 viewPosition; 
@@ -705,43 +784,131 @@ class SimplePhongTextureSpotlightShaderProgram:
             uniform float linearAttenuation;
             uniform float quadraticAttenuation;
 
-            uniform sampler2D samplerTex;
+            // Iluminación de focos
+            uniform vec3 lightPos0; 
+            uniform vec3 lightPos1;  
+            uniform vec3 lightPos2;
+            uniform vec3 lightPos3;
+            uniform vec3 La0;
+            uniform vec3 La1;
+            uniform vec3 La2;
+            uniform vec3 La3;
+            uniform vec3 Ld0;
+            uniform vec3 Ld1;
+            uniform vec3 Ld2;
+            uniform vec3 Ld3;
+            uniform vec3 Ls0;
+            uniform vec3 Ls1;
+            uniform vec3 Ls2;
+            uniform vec3 Ls3;
+            
+            // Información de texturas
+            uniform float time;
+
+            uniform sampler2D TexWater;
+            uniform sampler2D TexDisplacement;
 
             void main()
-            {     
-                vec4 fragOriginalColor = texture(samplerTex, fragTexCoords);
+            {    
+                // Water effects
+                vec4 originalColor;
+                vec2 displaCoords= vec2(mod((fragTexCoords.x*0.8+0.1) + time/3, 1), mod((fragTexCoords.y*0.8+0.1) - time/3, 1));
+                vec4 displacement = texture(TexDisplacement, displaCoords);
+                float desplazamiento = dot(displacement, vec4(1,1,1,1))/20;
+                vec2 TexCoords= vec2(mod(fragTexCoords.x + desplazamiento- time, 1), mod(fragTexCoords.y +desplazamiento, 1));
+                vec4 waterColor = texture(TexWater, TexCoords);
+                originalColor = waterColor;
 
-                // ambient
-                vec3 ambient = Ka * La;
-                
-                // diffuse
+                // Creación de parámetros para múltiples luces
                 // fragment normal has been interpolated, so it does not necessarily have norm equal to 1
-                vec3 tolight = lightPos-fragPosition;
                 vec3 normalizedNormal = normalize(fragNormal);
+                vec3 result = vec3(0.0f, 0.0f, 0.0f);
+
+                // Luces
+                vec3 lights[3] = vec3[](lightPos0, lightPos1, lightPos2);
+                vec3 Las[3] = vec3[](La0, La1, La2);
+                vec3 Lds[3] = vec3[](Ld0, Ld1, Ld2);
+                vec3 Lss[3] = vec3[](Ls0, Ls1, Ls2);
+
+                for (int i = 0; i<3; i++)   
+                {
+                    // ambient      
+                    vec3 ambient = Ka * Las[i];
+
+                    // diffuse      
+                    vec3 tolight = lights[i]-fragPosition;
+                    vec3 lightDir = normalize(tolight);
+                    float diff = max(dot(normalizedNormal, lightDir), 0.0);
+                    vec3 diffuse = Kd * Lds[i] * diff;
+                
+                    // specular    
+                    vec3 viewDir = normalize(viewPosition - fragPosition);
+                    vec3 reflectDir = reflect(-lightDir, normalizedNormal);  
+                    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+                    vec3 specular = Ks * Lss[i] * spec;
+
+                    // attenuation  
+                    float distToLight = length(tolight);
+                    float attenuation = 0.01
+                        + 0.02 * distToLight
+                        + 0.03 * distToLight * distToLight;
+
+                    result += ambient + (((diffuse + specular) / attenuation));
+                }
+                // Luz del final  
+                // ambient
+                vec3 ambient = Ka * La3;
+
+                // diffuse 
+                vec3 tolight = lightPos3-fragPosition;
                 vec3 lightDir = normalize(tolight);
                 float diff = max(dot(normalizedNormal, lightDir), 0.0);
-                vec3 diffuse = Kd * Ld * diff;
-                
-                // specular
+                vec3 diffuse = Kd * Ld3 * diff;
+            
+                // specular 
                 vec3 viewDir = normalize(viewPosition - fragPosition);
                 vec3 reflectDir = reflect(-lightDir, normalizedNormal);  
                 float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-                vec3 specular = Ks * Ls * spec;
+                vec3 specular = Ks * Ls3 * spec;
 
                 // attenuation
                 float distToLight = length(tolight);
-                float attenuation = constantAttenuation
+                float attenuation = 0.01
+                    + 0.01 * distToLight
+                    + 0.01 * distToLight * distToLight;
+
+                result += ambient + (((diffuse + specular) / attenuation));
+
+                // Linterna
+                // ambient
+                ambient = Ka * La;
+
+                // diffuse 
+                tolight = lightPos-fragPosition;
+                lightDir = normalize(tolight);
+                diff = max(dot(normalizedNormal, lightDir), 0.0);
+                diffuse = Kd * Ld * diff;
+            
+                // specular 
+                viewDir = normalize(viewPosition - fragPosition);
+                reflectDir = reflect(-lightDir, normalizedNormal);  
+                spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+                specular = Ks * Ls * spec;
+
+                // attenuation
+                distToLight = length(tolight);
+                attenuation = constantAttenuation
                     + linearAttenuation * distToLight
                     + quadraticAttenuation * distToLight * distToLight;
 
-                // spotlight
+                // spotlight 
                 vec3 dir = normalize(-lightDirection);
                 float spotLight = pow(max(dot(dir, lightDir), 0.0), concentration);
 
-                vec3 result = ambient + spotLight/attenuation * (diffuse + specular);
+                result += ambient + (spotLight * ((diffuse + specular) / attenuation));
                     
-                result = result * fragOriginalColor.rgb;
-                fragColor = vec4(result, 1.0);
+                vec3 resultFin = result * originalColor.rgb;
+                fragColor = vec4(resultFin, 1.0);
 
             }
             """
@@ -776,11 +943,14 @@ class SimplePhongTextureSpotlightShaderProgram:
 
 
     def drawCall(self, gpuShape, mode=GL_TRIANGLES):
-        assert isinstance(gpuShape, GPUShape)
+        assert isinstance(gpuShape, GPUShapeMulti)
+        cantidad = gpuShape.cantidad
 
         # Binding the VAO and executing the draw call
         glBindVertexArray(gpuShape.vao)
-        glBindTexture(GL_TEXTURE_2D, gpuShape.texture)
+        for i in range(cantidad):
+            glActiveTexture(GL_TEXTURE0 + i)
+            glBindTexture(GL_TEXTURE_2D, gpuShape.texture[i])
 
         glDrawElements(mode, gpuShape.size, GL_UNSIGNED_INT, None)
 
