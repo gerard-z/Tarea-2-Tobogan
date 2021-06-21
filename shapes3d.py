@@ -1,5 +1,6 @@
 """Funciones para crear distintas figuras y escenas en 3D """
 
+from numpy.lib.function_base import append
 from grafica.gpu_shape import GPUShape
 import openmesh as om
 import numpy as np
@@ -17,7 +18,16 @@ thisFolderPath = os.path.dirname(thisFilePath)
 assetsDirectory = os.path.join(thisFolderPath, "sprites")
 waterPath = os.path.join(assetsDirectory, "water.png")
 displacementPath = os.path.join(assetsDirectory, "displacement.png")
-texturasPath = os.path.join(assetsDirectory, "textures.png")
+
+boat1 = os.path.join(assetsDirectory, "boat1.obj")
+boat2 = os.path.join(assetsDirectory, "boat2.obj")
+boat3 = os.path.join(assetsDirectory, "boat3.obj")
+wood1 = os.path.join(assetsDirectory, "wood1.jpg")
+norm1 = os.path.join(assetsDirectory, "wood1_NRM.jpg")
+wood2 = os.path.join(assetsDirectory, "wood2.jpg")
+norm2 = os.path.join(assetsDirectory, "wood2_NRM.jpg")
+wood3 = os.path.join(assetsDirectory, "wood3.jpg")
+norm3 = os.path.join(assetsDirectory, "wood3_NRM.jpg")
 
 # Convenience function to ease initialization
 def createGPUShape(pipeline, shape):
@@ -115,8 +125,8 @@ def Curveposition(typeCurve, V1, V2, V3, V4, t):
 
 
 ######################################################
-
-
+# Todo esto era para la tarea de cuevas
+"""
 ######## CREANDO UNA MALLA FRACTAL #####
 def fractalMesh(mesh, n):
     k = 0
@@ -157,9 +167,9 @@ def fractalMesh(mesh, n):
 
 
 def caveMesh(matriz):
-    """ Se crea las 2 mallas de polígonos correspondiente al suelo y el techo, por conveniencia, se utilizarán celdas
+    Se crea las 2 mallas de polígonos correspondiente al suelo y el techo, por conveniencia, se utilizarán celdas
     de 5x5 metros cuadrados. (Considerando que los ejes se encontraran efectivamente en metros)
-    De esta manera, Lara será capaz de moverse por la celda. """
+    De esta manera, Lara será capaz de moverse por la celda.
     suelo = om.TriMesh()
     techo = om.TriMesh()
     # Se obtienen las dimensiones de la matriz
@@ -388,6 +398,8 @@ def createCave(pipeline, Matriz):
 
     return gpuSuelo, gpuTecho, suelo, techo
 
+"""
+
 ########## Curva Nonuniform splines ##############################
 class CatmullRom:
     """ Crear una curva catmull rom"""
@@ -399,10 +411,11 @@ class CatmullRom:
         self.tiempo = self.nodos-3
         self.vertices = None
         self.puntos = None
-        self.Actual = 1
+        self.Actual = 0.5
         self.velocidad = velocidad
         self.avanzar = False
         self.radio = 4 # Radio que tendrá el tobogán, se incluye acá para que pueda ser utilizado en la cámara también.
+        self.bote = 1
 
     def getPosition(self, tiempo):
         """ Calcula la posición de la curva grande, estimando entre que nodos  está y calcular la curva de HERMITE que describe entre los nodos que se encuentra la posición en el tiempo"""
@@ -449,21 +462,115 @@ class CatmullRom:
     def camera(self, delta, controller):
         """Entrega las posiciones de la camara  y hacia donde debe mirar en todo momento, una vez ya creada la curva con "createCurve" """
         if controller.reset:
-            self.Actual = 1
-            controller.reset = False
+            self.Actual = 0.5
             self.avanzar = True
         avance = delta * self.velocidad
         TiempoMax = self.tiempo-3
-        tiempo = self.Actual + 1
+        tiempo = self.Actual + 0.5
         if tiempo+2*avance>= TiempoMax:
             self.avanzar = False
 
         eye = self.getPosition(self.Actual)
         at = self.getPosition(tiempo)
-        at[2] -= self.radio
+        at[2] -= self.radio-1
         if self.avanzar:
             self.Actual += avance
         return eye, at
+
+    def boat(self, delta, controller):
+        """Entrega las posiciones del bote  y hacia donde debe mirar en todo momento, una vez ya creada la curva con "createCurve" """
+        if controller.reset:
+            self.bote = 1
+            controller.reset = False
+            
+        avance = delta * self.velocidad
+        TiempoMax = self.tiempo-0.2
+        tiempo = self.bote
+        tiempo1 = tiempo + 0.001
+
+        pos = self.getPosition(tiempo)
+        dir = self.getPosition(tiempo1)
+        theta, alpha = orientacion(pos, dir)
+
+        if tiempo1 + avance<TiempoMax and controller.empezar:
+            self.bote += avance
+        return pos, theta, alpha, dir
+
+
+def createRandomColorNormalToroid(N):
+    vertices = []
+    indices = []
+
+    Rcolor = rd.rand()
+    Gcolor = rd.rand()
+    Bcolor = rd.rand()
+
+    dalpha = 2 * np.pi /(N-1)
+    dbeta = 2 * np.pi /(N-1)
+    R=0.3
+    r = 0.2
+    c = 0
+    for i in range(N-1):
+        beta = i * dbeta
+        beta2= (i+1) * dbeta
+        for j in range(N-1):
+            alpha = j * dalpha
+            alpha2 = (j+1) * dalpha
+
+            v0 = [(R + r*np.cos(alpha))*np.cos(beta), (R+r*np.cos(alpha))*np.sin(beta), r*np.sin(alpha)]
+            v1 = [(R + r*np.cos(alpha2))*np.cos(beta), (R+r*np.cos(alpha2))*np.sin(beta), r*np.sin(alpha2)]
+            v2 = [(R + r*np.cos(alpha2))*np.cos(beta2), (R+r*np.cos(alpha2))*np.sin(beta2), r*np.sin(alpha2)]
+            v3 = [(R + r*np.cos(alpha))*np.cos(beta2), (R+r*np.cos(alpha))*np.sin(beta2), r*np.sin(alpha)]
+
+            n0 = [np.cos(alpha) * np.cos(beta), np.cos(alpha) * np.sin(beta), np.sin(alpha)]
+            n1 = [np.cos(alpha2) * np.cos(beta), np.cos(alpha2) * np.sin(beta), np.sin(alpha2)]
+            n2 = [np.cos(alpha2) * np.cos(beta2), np.cos(alpha2) * np.sin(beta2), np.sin(alpha2)]
+            n3 = [np.cos(alpha) * np.cos(beta2), np.cos(alpha) * np.sin(beta2), np.sin(alpha)]
+
+            vertices += [v0[0], v0[1], v0[2], Rcolor, Gcolor, Bcolor, n0[0], n0[1], n0[2]]
+            vertices += [v1[0], v1[1], v1[2], Rcolor, Gcolor, Bcolor, n1[0], n1[1], n1[2]]
+            vertices += [v2[0], v2[1], v2[2], Rcolor, Gcolor, Bcolor, n2[0], n2[1], n2[2]]
+            vertices += [v3[0], v3[1], v3[2], Rcolor, Gcolor, Bcolor, n3[0], n3[1], n3[2]]
+            indices += [ c + 0, c + 1, c +2 ]
+            indices += [ c + 2, c + 3, c + 0 ]
+            c += 4
+    return bs.Shape(vertices, indices)
+
+def createtoroidNode(gpu, pos, phi, alpha):
+    toroidNode = sg.SceneGraphNode("toroid")
+    toroidNode.transform =tr.matmul([
+        tr.translate(pos[0], pos[1], pos[2]),
+        tr.rotationY(-phi), 
+        tr.rotationX(np.pi/2-alpha)
+    ])
+    toroidNode.childs = [gpu]
+    return toroidNode
+
+def createToroidsNode(pipeline, curve, N):
+    toroids = []
+    TiempoMax = curve.tiempo-3
+    tiempoin = 1
+    tiempo = TiempoMax - tiempoin
+    dt = tiempo/(N-1)
+
+    for i in range(N):
+        t = i*dt
+        pos = curve.getPosition(t)
+        dir = curve.getPosition(t+0.1)
+        theta, alpha = orientacion(pos, dir)
+        phi = np.pi*(rd.rand()*0.5 - 0.2)
+        theta = np.pi*(rd.rand()-0.5)
+        adaptarPos(pos, curve.radio, phi, theta)
+        toroid = createGPUShape(pipeline, createRandomColorNormalToroid(15))
+        toroids.append(createtoroidNode(toroid, pos, phi, alpha))
+
+
+
+
+    scaledToroid = sg.SceneGraphNode("sc_toroid")
+    scaledToroid.childs = toroids
+
+    return scaledToroid
 
 
 
@@ -477,15 +584,6 @@ def createSlide(curva, N):
     radio = curva.radio # radio del tobogán
     puntosCilindro = 40 # número de puntos en un cilindro
     dtheta = 2 * np.pi/(puntosCilindro-1)
-
-    def orientacion(pos, nextPos): # Repetimos el procedimiento de la transformación vista para obtener la orientación dentro del tobogán, se desconsidera tubos en total "picada"
-        dir = (nextPos- pos)
-        y = dir[1]
-        x = dir[0]
-        theta = np.arctan2(y,x)
-        z = dir[2]
-        alpha = np.arctan2(z, np.sqrt(x*x+y*y))
-        return theta , alpha
     
     cilindro = []
     for j in range(puntosCilindro-1):

@@ -48,6 +48,7 @@ if __name__ == "__main__":
     # Diferentes shader 3D que consideran la iluminación de la linterna
     phongPipeline = nl.SimplePhongSpotlightShaderProgram()
     phongTexPipeline = nl.DoublePhongTextureSpotlightShaderProgram()
+    phongOBJPipeline = nl.NormalPhongTextureSpotlightShaderProgram()
 
     # Este shader 3D no considera la iluminación de la linterna
     mvpPipeline = es.SimpleModelViewProjectionShaderProgram()
@@ -63,68 +64,33 @@ if __name__ == "__main__":
     glEnable(GL_DEPTH_TEST)
 
     # Creando curva
-    pos = np.zeros((10,3))
-    pos[0]= np.array([0, 0, 0])
-    pos[1]= np.array([4, 0, 0])
-    pos[2]= np.array([8, 0, 0])
-    pos[3]= np.array([12, 0, -1])
-    pos[4]= np.array([16, 0, -3])
-    pos[5]= np.array([20, 0, -5])
-    pos[6]= np.array([24, 4, -5])
-    pos[7]= np.array([28, 8, -5])
-    pos[8]= np.array([32, 12, -5])
-    pos[9]= np.array([36, 16, -5])
-
-    pos2 = np.zeros((10,3))
-    pos2[0]= np.array([0, 0, 0])
-    pos2[1]= np.array([4, 4, -5])
-    pos2[2]= np.array([8, 8, -10])
-    pos2[3]= np.array([12, 12, -15])
-    pos2[4]= np.array([16, 16, -20])
-    pos2[5]= np.array([20, 20, -30])
-    pos2[6]= np.array([24, 24, -40])
-    pos2[7]= np.array([28, 28, -60])
-    pos2[8]= np.array([32, 32, -80])
-    pos2[9]= np.array([36, 36, -140])
-
-    pos3 = np.zeros((10,3))
-    pos3[0]= np.array([0, 0, 0])
-    pos3[1]= np.array([0, 4, 0])
-    pos3[2]= np.array([0, 8, 0])
-    pos3[3]= np.array([0, 12, -1])
-    pos3[4]= np.array([0, 16, -3])
-    pos3[5]= np.array([0, 20, -5])
-    pos3[6]= np.array([0, 24, -5])
-    pos3[7]= np.array([0, 28, -5])
-    pos3[8]= np.array([0, 32, -5])
-    pos3[9]= np.array([0, 36, -5])
 
     pos1 = np.zeros((25,3))
     pos1[0] = np.array([-20, 10, 0])
     pos1[1] = np.array([-10, 5, 0])
     pos1[2] = np.array([0,0,0])
     pos1[3] = np.array([10,-5,0])
-    pos1[4] = np.array([20,0,-5])
-    pos1[5] = np.array([25,10,-10])
-    pos1[6] = np.array([20, 20, -15])
-    pos1[7] = np.array([10, 25, -20])
-    pos1[8] = np.array([0, 20, -25])
-    pos1[9] = np.array([-5, 10, -25])
-    pos1[10] = np.array([-5, 0, -30])
-    pos1[11] = np.array([-10, -10, -35])
-    pos1[12] = np.array([-20, -15, -35])
-    pos1[13] = np.array([-30, -10, -40])
-    pos1[14] = np.array([-35, 0, -45])
-    pos1[15] = np.array([-30, 10, -50])
-    pos1[16] = np.array([-20, 15, -55])
-    pos1[17] = np.array([-10, 15, -60])
-    pos1[18] = np.array([0, 10, -60])
-    pos1[19] = np.array([5, 0, -60])
-    pos1[20] = np.array([5, -10, -60])
-    pos1[21] = np.array([5, -20, -60])
-    pos1[22] = np.array([0, -30, -60])
-    pos1[23] = np.array([-10, -35, -60])
-    pos1[24] = np.array([-20, -35, -60])
+    pos1[4] = np.array([20,0,-2.5])
+    pos1[5] = np.array([25,10,-5])
+    pos1[6] = np.array([20, 20, -7.5])
+    pos1[7] = np.array([10, 25, -10])
+    pos1[8] = np.array([0, 20, -12.5])
+    pos1[9] = np.array([-5, 10, -12.5])
+    pos1[10] = np.array([-5, 0, -15])
+    pos1[11] = np.array([-10, -10, -17.5])
+    pos1[12] = np.array([-20, -15, -17.5])
+    pos1[13] = np.array([-30, -10, -20])
+    pos1[14] = np.array([-35, 0, -22.5])
+    pos1[15] = np.array([-30, 10, -25])
+    pos1[16] = np.array([-20, 15, -27.5])
+    pos1[17] = np.array([-10, 15, -30])
+    pos1[18] = np.array([0, 10, -30])
+    pos1[19] = np.array([5, 0, -30])
+    pos1[20] = np.array([5, -10, -30])
+    pos1[21] = np.array([5, -20, -30])
+    pos1[22] = np.array([0, -30, -30])
+    pos1[23] = np.array([-15, -35, -30])
+    pos1[24] = np.array([-25, -35, -30])
 
 
 
@@ -135,6 +101,18 @@ if __name__ == "__main__":
     gpuTobogan = createTobogan(phongPipeline, tobogan)
     gpuToboganTex = createTexTobogan(phongTexPipeline, toboganTex)
 
+    radio = curva.radio-0.2
+    #shapeBote = readOBJ(botePath, 1)
+    #gpuBote = createMultipleTextureGPUShape(shapeBote, phongOBJPipeline, [texBotePath, NormBotePath])
+
+    toroids = createToroidsNode(phongPipeline, curva, N)
+
+    shapeBote1 = readOBJ(boat1, 1)
+    gpuBote1 = createMultipleTextureGPUShape(shapeBote1, phongOBJPipeline, [wood1, norm1], sWrapMode=GL_REPEAT, tWrapMode=GL_REPEAT)
+    shapeBote2 = readOBJ(boat2, 1)
+    gpuBote2 = createMultipleTextureGPUShape(shapeBote2, phongOBJPipeline, [wood2, norm2], sWrapMode=GL_REPEAT, tWrapMode=GL_REPEAT)
+    shapeBote3 = readOBJ(boat3, 1)
+    gpuBote3 = createMultipleTextureGPUShape(shapeBote3, phongOBJPipeline, [wood3, norm3], sWrapMode=GL_REPEAT, tWrapMode=GL_REPEAT)
 
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
     # glfw will swap buffers as soon as possible
@@ -152,6 +130,7 @@ if __name__ == "__main__":
     Lpos2[2] += curva.radio*0.9
     Lpos3[2] += curva.radio*0.9
     Lpos4 = curva.getvertice(curva.puntos-16)
+    phi = 0
 
     # Application loop
     while not glfw.window_should_close(window):
@@ -164,7 +143,6 @@ if __name__ == "__main__":
         delta = t1 -t0
         t0 = t1
 
-        T += 3*delta * velocidad
 
         c1 = np.abs(((0.5*t1+0.00) % 2)-1)
         c2 = np.abs(((0.5*t1+0.66) % 2)-1)
@@ -178,7 +156,10 @@ if __name__ == "__main__":
             delta *= 4
         if (glfw.get_key(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS):
             delta /= 4
-
+        if (glfw.get_key(window, glfw.KEY_LEFT) == glfw.PRESS) and phi<=np.pi*0.3:
+            phi += delta
+        if (glfw.get_key(window, glfw.KEY_RIGHT) == glfw.PRESS) and phi>=-np.pi*0.2:
+            phi -= delta
         # Definimos la cámara de la aplicación
         controller.update_camera(delta, curva)
         camera = controller.get_camera()
@@ -190,9 +171,18 @@ if __name__ == "__main__":
 
         viewMatrix = camera.update_view()
 
+        T += 3*delta * velocidad
+
+        # Posición del bote
+        pos, theta, alpha, dir = curva.boat(delta, controller)
+        theta += np.pi/2        
+        adaptarPos(dir, radio, phi, theta)
         # iluminación
-        lightPos = controller.getEyeCamera()
-        lightDirection = controller.getAtCamera() - controller.getEyeCamera()
+        lightPos = np.array(pos)
+        adaptarPos(lightPos, radio*0.7, phi, theta)
+        adaptarPos(pos, radio, phi, theta)
+        lightDirection = dir- pos
+
 
         # definiendo parámetros del foco
         if controller.light==1:
@@ -219,8 +209,8 @@ if __name__ == "__main__":
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         
-        # Shader de texturas
-        light.updateLight(phongTexPipeline, lightPos, lightDirection, lightPos)
+        # Shader de texturas para dar efecto de movimiento de agua
+        light.updateLight(phongTexPipeline, lightPos, lightDirection, controller.getEyeCamera())
         light.addLight(0, Lpos1, 1, 1, 1)
         light.addLight(1, Lpos2, 1, 1, 1)
         light.addLight(2, Lpos3, 1, 1, 1)
@@ -240,11 +230,11 @@ if __name__ == "__main__":
 
         # Transformación del modelo
         glUniformMatrix4fv(glGetUniformLocation(phongTexPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.identity())
-
         # Drawing
         phongTexPipeline.drawCall(gpuToboganTex)
 
-        # Shader de iluminación
+
+        # Shader de iluminación para objetos sin texturas
         light.updateLight(phongPipeline, lightPos, lightDirection, lightPos)
         light.addLight(0, Lpos1, 1, 1, 1)
         light.addLight(1, Lpos2, 1, 1, 1)
@@ -264,6 +254,34 @@ if __name__ == "__main__":
 
         # Drawing
         phongPipeline.drawCall(gpuTobogan)
+        sg.drawSceneGraphNode(toroids, phongPipeline, "model")
+
+
+
+        # Shader de iluminación para objetos con texturas para color y normal
+        light.updateLight(phongOBJPipeline, lightPos, lightDirection, lightPos)
+        light.addLight(0, Lpos1, 1, 1, 1)
+        light.addLight(1, Lpos2, 1, 1, 1)
+        light.addLight(2, Lpos3, 1, 1, 1)
+        light.addLight(3, Lpos4, c1, c2, c3)
+        # Enviar matrices de transformaciones
+        glUniformMatrix4fv(glGetUniformLocation(phongOBJPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(phongOBJPipeline.shaderProgram, "view"), 1, GL_TRUE, viewMatrix)
+
+        # Iluminación del material
+        glUniform3f(glGetUniformLocation(phongOBJPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
+        glUniform3f(glGetUniformLocation(phongOBJPipeline.shaderProgram, "Kd"), 0.5, 0.5, 0.5)
+        glUniform3f(glGetUniformLocation(phongOBJPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
+
+        # Transformación del modelo
+        rotation = tr.matmul([tr.rotationZ(theta), tr.rotationY(-phi), tr.rotationX(np.pi/2-alpha)])
+        model = tr.matmul([tr.translate(pos[0], pos[1], pos[2]), rotation, tr.uniformScale(0.2)])
+        glUniformMatrix4fv(glGetUniformLocation(phongOBJPipeline.shaderProgram, "model"), 1, GL_TRUE, model)
+
+        # Drawing
+        phongOBJPipeline.drawCall(gpuBote1)
+        phongOBJPipeline.drawCall(gpuBote2)
+        phongOBJPipeline.drawCall(gpuBote3)
         
         
         # Once the drawing is rendered, buffers are swap so an uncomplete drawing is never seen.
@@ -271,5 +289,9 @@ if __name__ == "__main__":
 
     gpuTobogan.clear()
     gpuToboganTex.clear()
+    gpuBote1.clear()
+    gpuBote2.clear()
+    gpuBote3.clear()
+    toroids.clear()
 
     glfw.terminate()

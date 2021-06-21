@@ -98,6 +98,7 @@ class Controller:
         self.light = 3
 
         self.reset = False
+        self.empezar = False
 
         self.leftClickOn = False
         self.rightClickOn = False
@@ -165,8 +166,9 @@ class Controller:
             if key == glfw.KEY_4:
                 self.light = 4
             
-            if key == glfw.KEY_R:
+            if key == glfw.KEY_UP:
                 self.reset = True
+                self.empezar = True
 
     # Función que obtiene las coordenadas de la posición del mouse y las traduce en coordenadas de openGL
     def cursor_pos_callback(self, window, x, y):
@@ -270,6 +272,16 @@ class Controller:
 
             self.camera.set_theta(theta)
 
+    def collision(self, cargas):
+        # Funcion para detectar las colisiones con las cargas
+
+        # Se recorren las cargas 
+        for carga in cargas:
+            # si la distancia a la carga es menor que la suma de los radios ha ocurrido en la colision
+            if (self.radio+carga.radio)**2 > ((self.pos[0]- carga.pos[0])**2 + (self.pos[1]-carga.pos[1])**2):
+                self.reset = True
+                return
+
 # Clase iluminación, crea los parámetros y las funciones para inicializar los shaders con normales.
 class Iluminacion:
     def __init__(self):
@@ -333,11 +345,16 @@ class Iluminacion:
         
 
 # Clase para guardar datos
-class mallaTam:
-    def __init__(self, mesh, N, M):
-        self.mesh = mesh
-        self.N = N
-        self.M = M
+class Carga():
+    # Clase para contener las caracteristicas de un objeto que representa una carga 
+    def __init__(self, posx, posy, size):
+        self.pos = [posx, posy]
+        self.radio = 0.4
+        self.size = size
+        self.model = None
+    
+    def set_model(self, new_model):
+        self.model = new_model
         
 
 
@@ -364,3 +381,131 @@ def calculateNormal(mesh):
         dir2 = P2 - P1          # Calcula el vector que va desde el tercer vértice al segundo
         cruz = np.cross(dir2, dir1)     # Obtiene la normal de la cara
         mesh.set_normal(face, cruz/np.linalg.norm(cruz))    # Se guarda la normal normalizada como atributo en la cara 
+
+
+
+def readFaceVertex(faceDescription):
+
+    aux = faceDescription.split('/')
+
+    assert len(aux[0]), "Vertex index has not been defined."
+
+    faceVertex = [int(aux[0]), None, None]
+
+    assert len(aux) == 2, "Only faces where its vertices require 3 indices are defined."
+
+    if len(aux[1]) != 0:
+        faceVertex[1] = int(aux[1])
+
+    #if len(aux[2]) != 0:
+     #   faceVertex[2] = int(aux[2])
+
+    return faceVertex
+
+
+
+def readOBJ(filename, color = None):
+
+    vertices = []
+    normals = []
+    textCoords= []
+    faces = []
+
+    with open(filename, 'r') as file:
+        for line in file.readlines():
+            aux = line.strip().split(' ')
+            
+            if aux[0] == 'v':
+                vertices += [[float(coord) for coord in aux[1:]]]
+
+            elif aux[0] == 'vn':
+                normals += [[float(coord) for coord in aux[1:]]]
+
+            elif aux[0] == 'vt':
+                assert len(aux[1:]) == 2, "Texture coordinates with different than 2 dimensions are not supported"
+                textCoords += [[float(coord) for coord in aux[1:]]]
+
+            elif aux[0] == 'f':
+                N = len(aux)                
+                faces += [[readFaceVertex(faceVertex) for faceVertex in aux[1:4]]]
+                for i in range(3, N-1):
+                    faces += [[readFaceVertex(faceVertex) for faceVertex in [aux[i], aux[i+1], aux[1]]]]
+
+        vertexData = []
+        indices = []
+        index = 0
+
+        # Per previous construction, each face is a triangle
+        if color is None:
+            for face in faces:
+
+                # Checking each of the triangle vertices
+                for i in range(0,3):
+                    vertex = vertices[face[i][0]-1]
+                    texture = textCoords[face[i][1]-1]
+                    normal = normals[face[i][2]-1]
+
+                    vertexData += [
+                        vertex[0], vertex[1], vertex[2],
+                        texture[0], texture[1],
+                        normal[0], normal[1], normal[2]
+                    ]
+
+                # Connecting the 3 vertices to create a triangle
+                indices += [index, index + 1, index + 2]
+                index += 3        
+
+            return bs.Shape(vertexData, indices)
+
+        if color==1:
+            for face in faces:
+
+                # Checking each of the triangle vertices
+                for i in range(0,3):
+                    vertex = vertices[face[i][0]-1]
+                    texture = textCoords[face[i][1]-1]
+
+                    vertexData += [
+                        vertex[0], vertex[1], vertex[2],
+                        texture[0], texture[1],
+                    ]
+
+                # Connecting the 3 vertices to create a triangle
+                indices += [index, index + 1, index + 2]
+                index += 3        
+
+            return bs.Shape(vertexData, indices)
+
+        for face in faces:
+
+            # Checking each of the triangle vertices
+            for i in range(0,3):
+                vertex = vertices[face[i][0]-1]
+                normal = normals[face[i][2]-1]
+
+                vertexData += [
+                    vertex[0], vertex[1], vertex[2],
+                    color[0], color[1], color[2],
+                    normal[0], normal[1], normal[2]
+                ]
+
+            # Connecting the 3 vertices to create a triangle
+            indices += [index, index + 1, index + 2]
+            index += 3        
+
+        return bs.Shape(vertexData, indices)
+
+def orientacion(pos, nextPos): # Repetimos el procedimiento de la transformación vista para obtener la orientación dentro del tobogán, se desconsidera tubos en total "picada"
+        dir = (nextPos- pos)
+        y = dir[1]
+        x = dir[0]
+        theta = np.arctan2(y,x)
+        z = dir[2]
+        alpha = np.arctan2(z, np.sqrt(x*x+y*y))
+        return theta , alpha
+
+def adaptarPos(vector, radio, phi, theta):
+    """ modifica el vector para que se encuentren a la altura adecuada dentro del cilindro"""
+    vector[0] += radio*np.sin(phi)*np.cos(theta)
+    vector[1] += radio*np.sin(phi)*np.sin(theta)
+    vector[2] -= radio * np.cos(phi)
