@@ -95,6 +95,9 @@ class Controller:
         self.camera = FirstCamera(0, 0, 2.5)
         self.camara = 1
 
+        self.boatPosition = None
+        self.toroidsPosition = None
+
         self.light = 3
 
         self.reset = False
@@ -120,20 +123,13 @@ class Controller:
     def getThetaCamera(self):
         return self.camera.theta
 
-    # Función que le entrega el mapa al controlador
-    def setMap(self, suelo, techo):
-        # Se calcula si es posible avanzar en ciertas coordenadas
-        (N, M) = (suelo.N, suelo.M)
-        sueloV = np.array(suelo.mesh.points())
-        techoV = np.array(techo.points())
-        x = sueloV[: , 0]
-        y = sueloV[: , 1]
-        zs = sueloV[:, 2]
-        zt = techoV[:, 2]
+    #Función que define la posición de los obstaculos
+    def setToroidPositions(self, positions):
+        self.toroidsPosition = positions
 
-        
-        self.suelo = suelo
-        self.techo = techo
+    #Función que define la posición del bote
+    def setBoatPosition(self, position):
+        self.boatPosition = position
 
     # Función que detecta que tecla se está presionando
     def on_key(self, window, key, scancode, action, mods):
@@ -272,15 +268,16 @@ class Controller:
 
             self.camera.set_theta(theta)
 
-    def collision(self, cargas):
+    def collision(self):
         # Funcion para detectar las colisiones con las cargas
 
         # Se recorren las cargas 
-        for carga in cargas:
-            # si la distancia a la carga es menor que la suma de los radios ha ocurrido en la colision
-            if (self.radio+carga.radio)**2 > ((self.pos[0]- carga.pos[0])**2 + (self.pos[1]-carga.pos[1])**2):
-                self.reset = True
-                return
+        for pos in self.toroidsPosition:
+            if self.boatPosition[2]<pos[2]+1 and self.boatPosition[2]>pos[2]-1: #Que estèn a una altura similar
+                # si la distancia a la carga es menor que la suma de los radios ha ocurrido en la colision
+                if (0.2+0.5)**2 > ((self.boatPosition[0]- pos[0])**2 + (self.boatPosition[1]-pos[1])**2):
+                    self.reset = True
+                    self.empezar = True
 
 # Clase iluminación, crea los parámetros y las funciones para inicializar los shaders con normales.
 class Iluminacion:

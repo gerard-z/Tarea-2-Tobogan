@@ -12,10 +12,13 @@ import grafica.scene_graph as sg
 import grafica.newLightShaders as nl
 from shapes3d import *
 from resources import *
+import sys
 
+#velocidad, N = float(sys.argv[1]), int(sys.argv[2])
 
 velocidad = 1
-N = 10
+N = 20
+
 
 if __name__ == "__main__":
 
@@ -105,7 +108,8 @@ if __name__ == "__main__":
     #shapeBote = readOBJ(botePath, 1)
     #gpuBote = createMultipleTextureGPUShape(shapeBote, phongOBJPipeline, [texBotePath, NormBotePath])
 
-    toroids = createToroidsNode(phongPipeline, curva, N)
+    toroids, toroidsPos = createToroidsNode(phongPipeline, curva, N)
+    controller.setToroidPositions(toroidsPos)
 
     shapeBote1 = readOBJ(boat1, 1)
     gpuBote1 = createMultipleTextureGPUShape(shapeBote1, phongOBJPipeline, [wood1, norm1], sWrapMode=GL_REPEAT, tWrapMode=GL_REPEAT)
@@ -182,6 +186,9 @@ if __name__ == "__main__":
         adaptarPos(lightPos, radio*0.7, phi, theta)
         adaptarPos(pos, radio, phi, theta)
         lightDirection = dir- pos
+
+        controller.setBoatPosition(pos)
+        controller.collision()
 
 
         # definiendo parámetros del foco

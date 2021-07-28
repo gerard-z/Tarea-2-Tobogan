@@ -541,13 +541,14 @@ def createtoroidNode(gpu, pos, phi, alpha):
     toroidNode.transform =tr.matmul([
         tr.translate(pos[0], pos[1], pos[2]),
         tr.rotationY(-phi), 
-        tr.rotationX(np.pi/2-alpha)
+        tr.rotationX(-alpha)
     ])
     toroidNode.childs = [gpu]
     return toroidNode
 
 def createToroidsNode(pipeline, curve, N):
     toroids = []
+    positions = []
     TiempoMax = curve.tiempo-3
     tiempoin = 1
     tiempo = TiempoMax - tiempoin
@@ -559,10 +560,10 @@ def createToroidsNode(pipeline, curve, N):
         dir = curve.getPosition(t+0.1)
         theta, alpha = orientacion(pos, dir)
         phi = np.pi*(rd.rand()*0.5 - 0.2)
-        theta = np.pi*(rd.rand()-0.5)
-        adaptarPos(pos, curve.radio, phi, theta)
+        adaptarPos(pos, curve.radio, phi, 0)
         toroid = createGPUShape(pipeline, createRandomColorNormalToroid(15))
         toroids.append(createtoroidNode(toroid, pos, phi, alpha))
+        positions.append(pos)
 
 
 
@@ -570,7 +571,7 @@ def createToroidsNode(pipeline, curve, N):
     scaledToroid = sg.SceneGraphNode("sc_toroid")
     scaledToroid.childs = toroids
 
-    return scaledToroid
+    return scaledToroid, positions
 
 
 
